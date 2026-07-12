@@ -50,6 +50,7 @@ model Application {
   attachmentFilename String?
   status             String     @default("draft")
   gmailMessageId     String?
+  scheduledAt        DateTime?
   createdAt          DateTime   @default(now())
   sentAt             DateTime?
   auditLogs          AuditLog[]

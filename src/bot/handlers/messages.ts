@@ -19,7 +19,13 @@ import {
   confirmAndSend,
   createFollowUpDraft,
   formatDraftPreview,
+  getApplicationForPreview,
 } from "../../services/applicationFlow.js";
+import {
+  applyRevisiValue,
+  REVISI_FIELD_LABELS,
+} from "../../services/revisi.js";
+import type { RevisiField } from "../session.js";
 import {
   applyJobFieldUpdates,
   formatMissingFieldsPrompt,
@@ -106,7 +112,7 @@ export function registerMessageHandlers(bot: Bot): void {
       );
       return;
     }
-    if (mode === "awaiting_job_complete" || mode === "awaiting_followup") {
+    if (mode === "awaiting_job_complete" || mode === "awaiting_followup" || mode === "awaiting_revisi") {
       await ctx.reply(
         joinBlocks(
           bold("Mode aktif"),
@@ -162,7 +168,7 @@ export function registerMessageHandlers(bot: Bot): void {
     }
 
     const mode = await getSession(telegramId);
-    if (mode === "awaiting_job_complete" || mode === "awaiting_followup") {
+    if (mode === "awaiting_job_complete" || mode === "awaiting_followup" || mode === "awaiting_revisi") {
       await ctx.reply(
         joinBlocks(
           bold("Mode aktif"),
@@ -249,6 +255,13 @@ export function registerMessageHandlers(bot: Bot): void {
         if (session.mode === "awaiting_followup") {
           await ctx.reply(
             joinBlocks(bold("Dibatalkan"), "Follow-up dibatalkan."),
+            replyHtml,
+          );
+          return;
+        }
+        if (session.mode === "awaiting_revisi") {
+          await ctx.reply(
+            joinBlocks(bold("Dibatalkan"), "Revisi dibatalkan."),
             replyHtml,
           );
           return;
@@ -388,6 +401,67 @@ export function registerMessageHandlers(bot: Bot): void {
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         await ctx.reply(joinBlocks(bold("Gagal"), msg), replyHtml);
+      }
+      return;
+    }
+
+    if (session.mode === "awaiting_revisi") {
+      const appId = session.payload.revisiApplicationId;
+      const field = session.payload.revisiField as RevisiField | undefined;
+      if (!appId || !field) {
+        await clearSession(telegramId);
+        await ctx.reply(
+          joinBlocks(bold("Sesi berakhir"), "Jalankan /revisi lagi."),
+          replyHtml,
+        );
+        return;
+      }
+
+      const needsWait =
+        field === "company" || field === "position" || field === "body";
+      if (needsWait) {
+        await ctx.reply(
+          joinBlocks(
+            bold("Revisi"),
+            field === "body"
+              ? "Menyimpan body…"
+              : `Memperbarui ${REVISI_FIELD_LABELS[field]} & menyusun ulang draft…`,
+          ),
+          replyHtml,
+        );
+      }
+
+      try {
+        await applyRevisiValue({
+          telegramId,
+          applicationId: appId,
+          field,
+          value: text,
+        });
+        await clearSession(telegramId);
+        const app = await getApplicationForPreview(appId);
+        if (!app) {
+          await ctx.reply(
+            joinBlocks(bold("Gagal"), "Draft tidak ditemukan setelah revisi."),
+            replyHtml,
+          );
+          return;
+        }
+        await ctx.reply(
+          joinBlocks(
+            bold("Revisi tersimpan"),
+            "Konfirmasi ulang draft:",
+          ),
+          replyHtml,
+        );
+        const preview = formatDraftPreview(app);
+        await ctx.reply(
+          preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
+          replyHtml,
+        );
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        await ctx.reply(joinBlocks(bold("Gagal revisi"), msg), replyHtml);
       }
       return;
     }

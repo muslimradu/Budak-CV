@@ -5,14 +5,24 @@ export type SessionMode =
   | "awaiting_cv"
   | "awaiting_job_complete"
   | "awaiting_followup"
+  | "awaiting_revisi"
   | "awaiting_delete";
 
 export type JobFieldKey = "position" | "company" | "recruiterEmail";
+
+export type RevisiField =
+  | "company"
+  | "position"
+  | "email"
+  | "subject"
+  | "body";
 
 export type SessionPayload = {
   jobId?: number;
   missing?: JobFieldKey[];
   followUpFromApplicationId?: number;
+  revisiApplicationId?: number;
+  revisiField?: RevisiField;
 };
 
 export type SessionState = {

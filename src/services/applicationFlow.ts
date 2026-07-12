@@ -15,6 +15,7 @@ import {
   code,
   divider,
   escapeHtml,
+  formatWib,
   joinBlocks,
 } from "../bot/format.js";
 
@@ -180,11 +181,17 @@ export function formatDraftPreview(app: {
   subject: string;
   body: string;
   attachmentFilename?: string | null;
+  scheduledAt?: Date | null;
+  status?: string | null;
   job: { position: string | null; company: string | null };
 }): string {
   const to = app.toEmail ?? "belum ada — pakai /send email@domain.com";
   const lampiran = app.attachmentFilename ?? "CV.pdf";
   const kindLabel = app.kind === "followup" ? "Follow-up" : "Lamaran";
+  const scheduleLine =
+    app.status === "scheduled" && app.scheduledAt
+      ? `Jadwal: ${formatWib(app.scheduledAt)}`
+      : null;
 
   return joinBlocks(
     bold(`Draft #${app.id} · ${kindLabel}`),
@@ -194,13 +201,17 @@ export function formatDraftPreview(app: {
       `Kepada: ${code(to)}`,
       `Subject: ${escapeHtml(app.subject)}`,
       `Lampiran: ${code(lampiran)}`,
-    ].join("\n"),
+      scheduleLine,
+    ]
+      .filter(Boolean)
+      .join("\n"),
     bold("Body"),
-    // Tanpa <pre>: wrap natural. Pengiriman pakai HTML di gmail/send.ts.
     escapeHtml(app.body),
     divider(),
     [
-      `Kirim: balas ${code("YA")} atau ${code("KIRIM")}`,
+      `Kirim sekarang: balas ${code("YA")} atau ${code("KIRIM")}`,
+      `Jadwal: ${code("/schedule 18:00")} atau ${code("/schedule 12/07/2026 18:00")}`,
+      `Revisi: ${code("/revisi perusahaan")} · posisi · email · subject · body`,
       `Tanpa email: ${code("/send email@domain.com")}`,
       `Batal: ${code("BATAL")}`,
     ].join("\n"),
@@ -215,29 +226,125 @@ export async function getPendingApplication() {
   });
 }
 
+export async function getApplicationForPreview(id: number) {
+  return prisma.application.findUnique({
+    where: { id },
+    include: { job: true },
+  });
+}
+
 export async function cancelPending(): Promise<boolean> {
   const pending = await getPendingApplication();
   if (!pending) return false;
 
   await prisma.application.update({
     where: { id: pending.id },
-    data: { status: "cancelled" },
+    data: { status: "cancelled", scheduledAt: null },
   });
   await audit("cancel", "User membatalkan draft", pending.id);
   return true;
 }
 
-export async function confirmAndSend(opts?: {
-  toEmail?: string;
-}): Promise<
-  { ok: true; messageId: string; to: string } | { ok: false; reason: string }
+export async function schedulePending(
+  at: Date,
+): Promise<
+  | { ok: true; applicationId: number; at: Date; to: string }
+  | { ok: false; reason: string }
 > {
   const pending = await getPendingApplication();
   if (!pending) {
     return {
       ok: false,
-      reason:
-        "Tidak ada draft yang menunggu konfirmasi. Jalankan /draft dulu.",
+      reason: "Tidak ada draft pending. Jalankan /draft dulu.",
+    };
+  }
+  const toEmail = pending.toEmail?.trim();
+  if (!toEmail) {
+    return {
+      ok: false,
+      reason: "Email tujuan belum ada. Set dulu: /revisi email atau /send …",
+    };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+    return { ok: false, reason: "Format email tujuan tidak valid." };
+  }
+  if (at.getTime() <= Date.now() + 30_000) {
+    return { ok: false, reason: "Waktu jadwal harus di masa depan." };
+  }
+
+  await prisma.application.update({
+    where: { id: pending.id },
+    data: { status: "scheduled", scheduledAt: at, toEmail },
+  });
+  await audit(
+    "schedule",
+    `Dijadwalkan ${at.toISOString()} ke ${toEmail}`,
+    pending.id,
+  );
+
+  return {
+    ok: true,
+    applicationId: pending.id,
+    at,
+    to: toEmail,
+  };
+}
+
+export async function cancelScheduled(
+  applicationId?: number,
+): Promise<number> {
+  if (applicationId) {
+    const app = await prisma.application.findFirst({
+      where: { id: applicationId, status: "scheduled" },
+    });
+    if (!app) return 0;
+    await prisma.application.update({
+      where: { id: app.id },
+      data: { status: "cancelled", scheduledAt: null },
+    });
+    await audit("schedule_cancel", "Jadwal dibatalkan", app.id);
+    return 1;
+  }
+
+  const apps = await prisma.application.findMany({
+    where: { status: "scheduled" },
+  });
+  for (const app of apps) {
+    await prisma.application.update({
+      where: { id: app.id },
+      data: { status: "cancelled", scheduledAt: null },
+    });
+    await audit("schedule_cancel", "Jadwal dibatalkan", app.id);
+  }
+  return apps.length;
+}
+
+export async function listScheduledApplications(limit = 10) {
+  return prisma.application.findMany({
+    where: { status: "scheduled" },
+    orderBy: { scheduledAt: "asc" },
+    take: limit,
+    include: { job: true },
+  });
+}
+
+export async function sendApplicationById(
+  applicationId: number,
+  opts?: { toEmail?: string },
+): Promise<
+  { ok: true; messageId: string; to: string } | { ok: false; reason: string }
+> {
+  const pending = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: { job: true },
+  });
+  if (!pending) {
+    return { ok: false, reason: "Draft tidak ditemukan." };
+  }
+  if (!["pending_confirm", "scheduled"].includes(pending.status)) {
+    return {
+      ok: false,
+      reason: `Status draft tidak bisa dikirim (${pending.status}).`,
     };
   }
 
@@ -305,6 +412,7 @@ export async function confirmAndSend(opts?: {
         toEmail,
         gmailMessageId: messageId,
         sentAt: new Date(),
+        scheduledAt: null,
       },
     });
 
@@ -324,6 +432,46 @@ export async function confirmAndSend(opts?: {
     await audit("send_failed", detail, pending.id);
     return { ok: false, reason: `Gagal mengirim email: ${detail}` };
   }
+}
+
+export async function confirmAndSend(opts?: {
+  toEmail?: string;
+}): Promise<
+  { ok: true; messageId: string; to: string } | { ok: false; reason: string }
+> {
+  const pending = await getPendingApplication();
+  if (!pending) {
+    return {
+      ok: false,
+      reason:
+        "Tidak ada draft yang menunggu konfirmasi. Jalankan /draft dulu.",
+    };
+  }
+  return sendApplicationById(pending.id, opts);
+}
+
+export async function processDueScheduledSends(): Promise<
+  Array<{ applicationId: number; result: Awaited<ReturnType<typeof sendApplicationById>> }>
+> {
+  const due = await prisma.application.findMany({
+    where: {
+      status: "scheduled",
+      scheduledAt: { lte: new Date() },
+    },
+    orderBy: { scheduledAt: "asc" },
+    take: 5,
+  });
+
+  const results: Array<{
+    applicationId: number;
+    result: Awaited<ReturnType<typeof sendApplicationById>>;
+  }> = [];
+
+  for (const app of due) {
+    const result = await sendApplicationById(app.id);
+    results.push({ applicationId: app.id, result });
+  }
+  return results;
 }
 
 export async function listRecentApplications(limit = 10) {

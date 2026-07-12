@@ -2,6 +2,7 @@ import { env } from "./config.js";
 import { prisma } from "./db/prisma.js";
 import { createBot, setupBotMenu } from "./bot/bot.js";
 import { loadToken } from "./gmail/auth.js";
+import { startScheduleWorker } from "./services/scheduleWorker.js";
 
 async function main(): Promise<void> {
   await prisma.userSettings.upsert({
@@ -24,11 +25,19 @@ async function main(): Promise<void> {
 
   const bot = createBot();
   await setupBotMenu(bot);
+  const scheduleTimer = startScheduleWorker(bot);
 
   console.log("Bot mulai polling…");
   console.log(`Allowlist user: ${env.TELEGRAM_USER_ID}`);
   console.log(`Max emails/day: ${env.MAX_EMAILS_PER_DAY}`);
   console.log(`LLM provider: ${env.LLM_PROVIDER}`);
+
+  const shutdown = () => {
+    clearInterval(scheduleTimer);
+    void prisma.$disconnect().then(() => process.exit(0));
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
 
   await bot.start({
     onStart: (info) => {
@@ -41,11 +50,4 @@ main().catch(async (error) => {
   console.error("Fatal:", error);
   await prisma.$disconnect();
   process.exit(1);
-});
-
-process.once("SIGINT", () => {
-  void prisma.$disconnect().then(() => process.exit(0));
-});
-process.once("SIGTERM", () => {
-  void prisma.$disconnect().then(() => process.exit(0));
 });

@@ -12,7 +12,8 @@ export function registerStartCommand(bot: Bot): void {
         `1. ${code("/cv")} — upload PDF CV`,
         "2. Kirim lowongan (teks / PDF / foto)",
         `3. ${code("/draft")} atau ${code("/draft 3")} — buat email`,
-        `4. Balas ${code("YA")} / ${code("KIRIM")} untuk mengirim`,
+        `4. ${code("/revisi perusahaan")} — ubah data draft`,
+        `5. ${code("/schedule 18:00")} — jadwalkan kirim, atau balas ${code("YA")}`,
       ].join("\n"),
       [
         bold("Perintah lain"),
@@ -21,6 +22,7 @@ export function registerStartCommand(bot: Bot): void {
         `${code("/status")} — riwayat lamaran`,
         `${code("/followup")} — draft follow-up`,
         `${code("/lang")} — bahasa email (auto / en / id)`,
+        `${code("/schedule")} — lihat / batal jadwal`,
         `${code("/send email@x.com")} — kirim ke email tertentu`,
         `${code("BATAL")} — batalkan mode / draft`,
       ].join("\n"),
