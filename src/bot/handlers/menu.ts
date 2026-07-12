@@ -1,6 +1,6 @@
+import type { Context } from "grammy";
 import {
   cancelPending,
-  confirmAndSend,
   createDraftApplication,
   formatDraftPreview,
   getLastSentApplication,
@@ -19,14 +19,9 @@ import {
   joinBlocks,
   replyHtml,
 } from "../format.js";
-import {
-  MenuBtn,
-  isConfirmButton,
-  isMainMenuButton,
-  withDraftConfirmMenu,
-  withMainMenu,
-} from "../keyboard.js";
+import { MenuBtn, isMainMenuButton, withDraftInline, withMainMenu } from "../keyboard.js";
 import { setSession } from "../session.js";
+import { showRevisiPicker } from "./callbacks.js";
 
 async function replyDraftPreview(
   ctx: { reply: (text: string, extra?: object) => Promise<unknown> },
@@ -35,43 +30,19 @@ async function replyDraftPreview(
   const preview = formatDraftPreview(app);
   const text =
     preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview;
-  await ctx.reply(text, withDraftConfirmMenu(replyHtml));
+  await ctx.reply(text, withDraftInline(replyHtml));
 }
 
 export async function handleMenuButton(
-  ctx: {
-    from?: { id: number };
-    reply: (text: string, extra?: object) => Promise<unknown>;
-  },
+  ctx: Context,
   label: string,
 ): Promise<boolean> {
   const text = label.trim();
-  if (!isMainMenuButton(text) && !isConfirmButton(text)) return false;
+  if (!isMainMenuButton(text)) return false;
 
   const telegramId = String(ctx.from!.id);
 
-  if (text === MenuBtn.confirmYes) {
-    await ctx.reply(joinBlocks(bold("Mengirim"), "Mohon tunggu…"), replyHtml);
-    const result = await confirmAndSend();
-    if (result.ok) {
-      await ctx.reply(
-        joinBlocks(
-          bold("Terkirim"),
-          `Kepada: ${code(result.to)}`,
-          `Message ID: ${code(result.messageId)}`,
-        ),
-        withMainMenu(replyHtml),
-      );
-    } else {
-      await ctx.reply(
-        joinBlocks(bold("Gagal kirim"), result.reason),
-        withDraftConfirmMenu(replyHtml),
-      );
-    }
-    return true;
-  }
-
-  if (text === MenuBtn.confirmNo || text === MenuBtn.cancel) {
+  if (text === MenuBtn.cancel) {
     await setSession(telegramId, "idle");
     const cancelled = await cancelPending();
     await ctx.reply(
@@ -92,7 +63,8 @@ export async function handleMenuButton(
         [
           `${code("/cv")} upload CV`,
           `${code("/draft")} buat email`,
-          `${code("/revisi sapaan: Mbak")} ubah draft`,
+          "Setelah draft: tombol di bawah pesan (Ya / Revisi / Jadwal)",
+          `${code("/revisi sapaan: Mbak")} ubah cepat`,
           `${code("/schedule 18:00")} jadwalkan`,
           `${code("YA")} / ${code("KIRIM")} kirim sekarang`,
         ].join("\n"),
@@ -135,20 +107,7 @@ export async function handleMenuButton(
   }
 
   if (text === MenuBtn.revisi) {
-    await ctx.reply(
-      joinBlocks(
-        bold("Revisi draft"),
-        "Ketik langsung, contoh:",
-        [
-          code("/revisi sapaan: Mbak"),
-          code("/revisi nama: Dodit Mulyanto, sapaan: Mas"),
-          code(
-            "/revisi nama: Dodit, sapaan: Mas, perusahaan: PT Angin Ribut",
-          ),
-        ].join("\n"),
-      ),
-      withDraftConfirmMenu(replyHtml),
-    );
+    await showRevisiPicker(ctx);
     return true;
   }
 
@@ -216,10 +175,10 @@ export async function handleMenuButton(
     await ctx.reply(
       joinBlocks(
         bold("Kirim email"),
-        "Kalau draft sudah siap: tekan ✅ Ya, kirim atau ketik YA.",
+        "Kalau draft sudah siap: tekan ✅ Ya, kirim di bawah preview, atau ketik YA.",
         `Atau set tujuan: ${code("/send email@domain.com")}`,
       ),
-      withDraftConfirmMenu(replyHtml),
+      withMainMenu(replyHtml),
     );
     return true;
   }

@@ -1,6 +1,6 @@
-import { Keyboard } from "grammy";
+import { InlineKeyboard, Keyboard } from "grammy";
 
-/** Label tombol menu utama (harus unik). */
+/** Label tombol menu utama (reply keyboard). */
 export const MenuBtn = {
   cv: "📄 CV",
   draft: "✉️ Draft",
@@ -14,37 +14,28 @@ export const MenuBtn = {
   delete: "🗑️ Hapus",
   help: "❓ Bantuan",
   cancel: "❌ Batal",
-  confirmYes: "✅ Ya, kirim",
-  confirmNo: "❎ Batal draft",
 } as const;
 
 export type MenuButtonLabel = (typeof MenuBtn)[keyof typeof MenuBtn];
 
-const MAIN_LABELS = new Set<string>([
-  MenuBtn.cv,
-  MenuBtn.draft,
-  MenuBtn.revisi,
-  MenuBtn.schedule,
-  MenuBtn.jobs,
-  MenuBtn.send,
-  MenuBtn.followup,
-  MenuBtn.lang,
-  MenuBtn.status,
-  MenuBtn.delete,
-  MenuBtn.help,
-  MenuBtn.cancel,
-]);
+const MAIN_LABELS = new Set<string>(Object.values(MenuBtn));
 
 export function isMainMenuButton(text: string): boolean {
   return MAIN_LABELS.has(text.trim());
 }
 
-export function isConfirmButton(text: string): boolean {
-  const t = text.trim();
-  return t === MenuBtn.confirmYes || t === MenuBtn.confirmNo;
-}
+/** Callback data untuk aksi di bawah draft. */
+export const Cb = {
+  send: "d:send",
+  cancel: "d:cancel",
+  revisi: "d:revisi",
+  schedule: "d:sched",
+  revisiBack: "r:back",
+  field: (f: string) => `r:f:${f}`,
+  sapaan: (v: string) => `r:s:${v}`,
+} as const;
 
-/** Keyboard grid ala menu visual (2 kolom). */
+/** Keyboard grid menu utama (2 kolom). */
 export function mainMenuKeyboard(): Keyboard {
   return new Keyboard()
     .text(MenuBtn.cv)
@@ -68,18 +59,46 @@ export function mainMenuKeyboard(): Keyboard {
     .persistent();
 }
 
-/** Tombol cepat setelah preview draft. */
-export function draftConfirmKeyboard(): Keyboard {
-  return new Keyboard()
-    .text(MenuBtn.confirmYes)
-    .text(MenuBtn.confirmNo)
+/** Tombol di bawah pesan preview draft (inline — chat tetap full). */
+export function draftActionsInline(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Ya, kirim", Cb.send)
+    .text("❎ Batal draft", Cb.cancel)
     .row()
-    .text(MenuBtn.revisi)
-    .text(MenuBtn.schedule)
+    .text("✏️ Revisi", Cb.revisi)
+    .text("📅 Jadwal", Cb.schedule);
+}
+
+/** Pilih field revisi (inline di bawah pesan). */
+export function revisiFieldsInline(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("🏷️ Sapaan", Cb.field("sapaan"))
+    .text("👤 Nama", Cb.field("nama"))
     .row()
-    .text(MenuBtn.help)
-    .resized()
-    .persistent();
+    .text("🏢 Perusahaan", Cb.field("company"))
+    .text("💼 Posisi", Cb.field("position"))
+    .row()
+    .text("📧 Email", Cb.field("email"))
+    .text("📝 Subject", Cb.field("subject"))
+    .row()
+    .text("📄 Body", Cb.field("body"))
+    .row()
+    .text("« Kembali", Cb.revisiBack);
+}
+
+/** Pilihan sapaan cepat. */
+export function sapaanInline(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Mas", Cb.sapaan("Mas"))
+    .text("Mbak", Cb.sapaan("Mbak"))
+    .row()
+    .text("Bapak", Cb.sapaan("Bapak"))
+    .text("Ibu", Cb.sapaan("Ibu"))
+    .row()
+    .text("Mr", Cb.sapaan("Mr"))
+    .text("Ms", Cb.sapaan("Ms"))
+    .row()
+    .text("« Kembali", Cb.revisi);
 }
 
 export function withMainMenu<T extends Record<string, unknown>>(
@@ -88,8 +107,12 @@ export function withMainMenu<T extends Record<string, unknown>>(
   return { ...extra, reply_markup: mainMenuKeyboard() };
 }
 
-export function withDraftConfirmMenu<T extends Record<string, unknown>>(
+/** Attach inline actions under a draft preview reply. */
+export function withDraftInline<T extends Record<string, unknown>>(
   extra: T,
-): T & { reply_markup: Keyboard } {
-  return { ...extra, reply_markup: draftConfirmKeyboard() };
+): T & { reply_markup: InlineKeyboard } {
+  return { ...extra, reply_markup: draftActionsInline() };
 }
+
+/** @deprecated use withDraftInline */
+export const withDraftConfirmMenu = withDraftInline;

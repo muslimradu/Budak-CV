@@ -26,13 +26,17 @@ import {
   getMissingJobFields,
   parseJobFieldReply,
 } from "../../services/jobComplete.js";
-import { bold, code, joinBlocks, replyHtml } from "../format.js";
+import { bold, code, escapeHtml, joinBlocks, replyHtml } from "../format.js";
 import { handleMenuButton } from "./menu.js";
+import { isMainMenuButton, withDraftInline, withMainMenu } from "../keyboard.js";
 import {
-  isConfirmButton,
-  isMainMenuButton,
-  withMainMenu,
-} from "../keyboard.js";
+  applyRevisiUpdates,
+  REVISI_FIELD_LABELS,
+} from "../../services/revisi.js";
+import {
+  formatDraftPreview,
+  getApplicationForPreview,
+} from "../../services/applicationFlow.js";
 
 async function downloadTelegramFile(
   bot: Bot,
@@ -230,7 +234,7 @@ export function registerMessageHandlers(bot: Bot): void {
 
     const telegramId = String(ctx.from!.id);
 
-    if (isMainMenuButton(text) || isConfirmButton(text)) {
+    if (isMainMenuButton(text)) {
       const handled = await handleMenuButton(ctx, text);
       if (handled) return;
     }
@@ -261,6 +265,13 @@ export function registerMessageHandlers(bot: Bot): void {
         if (session.mode === "awaiting_followup") {
           await ctx.reply(
             joinBlocks(bold("Dibatalkan"), "Follow-up dibatalkan."),
+            withMainMenu(replyHtml),
+          );
+          return;
+        }
+        if (session.mode === "awaiting_revisi_value") {
+          await ctx.reply(
+            joinBlocks(bold("Dibatalkan"), "Revisi dibatalkan."),
             withMainMenu(replyHtml),
           );
           return;
@@ -305,6 +316,66 @@ export function registerMessageHandlers(bot: Bot): void {
         ),
         replyHtml,
       );
+      return;
+    }
+
+    if (session.mode === "awaiting_revisi_value") {
+      const field = session.payload.revisiField;
+      const applicationId = session.payload.applicationId;
+      if (!field || !applicationId) {
+        await clearSession(telegramId);
+        await ctx.reply(
+          joinBlocks(bold("Sesi berakhir"), "Buka Revisi lagi dari draft."),
+          withMainMenu(replyHtml),
+        );
+        return;
+      }
+
+      const needsWait = [
+        "company",
+        "position",
+        "email",
+        "nama",
+        "sapaan",
+      ].includes(field);
+      if (needsWait) {
+        await ctx.reply(
+          joinBlocks(bold("Revisi"), "Memperbarui draft…"),
+          replyHtml,
+        );
+      }
+
+      try {
+        const { applicationId: id, changed } = await applyRevisiUpdates({
+          telegramId,
+          applicationId,
+          updates: { [field]: text },
+        });
+        await clearSession(telegramId);
+        const labels = changed.map((f) => REVISI_FIELD_LABELS[f]).join(", ");
+        await ctx.reply(
+          joinBlocks(
+            bold("Revisi tersimpan"),
+            `Diubah: ${escapeHtml(labels)}`,
+            "Konfirmasi ulang draft:",
+          ),
+          replyHtml,
+        );
+        const app = await getApplicationForPreview(id);
+        if (app) {
+          const preview = formatDraftPreview(app);
+          await ctx.reply(
+            preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
+            withDraftInline(replyHtml),
+          );
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        await ctx.reply(
+          joinBlocks(bold("Gagal revisi"), msg),
+          withMainMenu(replyHtml),
+        );
+      }
       return;
     }
 

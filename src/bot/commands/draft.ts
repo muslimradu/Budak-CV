@@ -4,7 +4,7 @@ import {
   formatDraftPreview,
 } from "../../services/applicationFlow.js";
 import { bold, code, joinBlocks, replyHtml } from "../format.js";
-import { withDraftConfirmMenu, withMainMenu } from "../keyboard.js";
+import { withDraftInline, withMainMenu } from "../keyboard.js";
 
 export function registerDraftCommand(bot: Bot): void {
   bot.command("draft", async (ctx) => {
@@ -44,10 +44,10 @@ export function registerDraftCommand(bot: Bot): void {
       if (preview.length > 4000) {
         await ctx.reply(
           preview.slice(0, 4000) + "\n…",
-          withDraftConfirmMenu(replyHtml),
+          withDraftInline(replyHtml),
         );
       } else {
-        await ctx.reply(preview, withDraftConfirmMenu(replyHtml));
+        await ctx.reply(preview, withDraftInline(replyHtml));
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

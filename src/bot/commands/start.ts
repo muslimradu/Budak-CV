@@ -14,7 +14,7 @@ export function registerStartCommand(bot: Bot): void {
         "2. Kirim lowongan (teks / PDF / foto)",
         `3. Tombol ${code("✉️ Draft")} — buat email`,
         `4. ${code("/revisi sapaan: Mbak")} — ubah draft`,
-        `5. Tombol ${code("✅ Ya, kirim")} / ${code("📅 Jadwal")}`,
+        `5. Tombol di bawah draft: ${code("Ya, kirim")} / ${code("Revisi")} / ${code("Jadwal")}`,
       ].join("\n"),
       [
         bold("Menu"),

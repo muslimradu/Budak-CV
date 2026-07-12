@@ -10,7 +10,7 @@ import {
   getApplicationForPreview,
 } from "../../services/applicationFlow.js";
 import { bold, code, escapeHtml, joinBlocks, replyHtml } from "../format.js";
-import { withDraftConfirmMenu, withMainMenu } from "../keyboard.js";
+import { withDraftInline, withMainMenu } from "../keyboard.js";
 
 const HELP = joinBlocks(
   bold("Revisi draft"),
@@ -101,7 +101,7 @@ export function registerRevisiCommand(bot: Bot): void {
       const preview = formatDraftPreview(app);
       await ctx.reply(
         preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
-        withDraftConfirmMenu(replyHtml),
+        withDraftInline(replyHtml),
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

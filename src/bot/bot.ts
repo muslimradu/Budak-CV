@@ -12,6 +12,7 @@ import { registerLangCommand } from "./commands/lang.js";
 import { registerRevisiCommand } from "./commands/revisi.js";
 import { registerScheduleCommand } from "./commands/schedule.js";
 import { registerMessageHandlers } from "./handlers/messages.js";
+import { registerCallbackHandlers } from "./handlers/callbacks.js";
 import { bold, joinBlocks, replyHtml } from "./format.js";
 
 const COMMAND_MENU = [
@@ -62,6 +63,7 @@ export function createBot(): Bot {
   registerJobsCommand(bot);
   registerDeleteCommand(bot);
   registerMessageHandlers(bot);
+  registerCallbackHandlers(bot);
 
   return bot;
 }
