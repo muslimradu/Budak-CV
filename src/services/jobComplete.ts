@@ -29,12 +29,12 @@ export function formatMissingFieldsPrompt(
     .join("\n");
 
   return joinBlocks(
-    bold("Data belum lengkap"),
-    `Lowongan ${code(`#${jobId}`)} masih kurang info.`,
-    "Balas HANYA field yang kosong (satu baris per field):",
+    bold("Masih kurang data"),
+    `Lowongan ${code(`#${jobId}`)} belum lengkap.`,
+    "Balas field yang kosong aja (satu baris per field):",
     code(examples),
     `Contoh:\n${code("posisi: QA Engineer\nperusahaan: Acme\nemail: hr@acme.com")}`,
-    `Batal: ${code("BATAL")}`,
+    `Batal? Ketik ${code("BATAL")}.`,
   );
 }
 

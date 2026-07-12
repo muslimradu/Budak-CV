@@ -4,6 +4,7 @@ import {
   createDraftApplication,
   formatDraftPreview,
   getLastSentApplication,
+  getPendingApplication,
   listActiveJobs,
   listRecentApplications,
   listScheduledApplications,
@@ -19,9 +20,13 @@ import {
   joinBlocks,
   replyHtml,
 } from "../format.js";
-import { MenuBtn, isMainMenuButton, withDraftInline, withMainMenu } from "../keyboard.js";
+import {
+  MenuBtn,
+  revisiFieldsInline,
+  withDraftInline,
+  withMainMenu,
+} from "../keyboard.js";
 import { setSession } from "../session.js";
-import { showRevisiPicker } from "./callbacks.js";
 
 async function replyDraftPreview(
   ctx: { reply: (text: string, extra?: object) => Promise<unknown> },
@@ -33,13 +38,33 @@ async function replyDraftPreview(
   await ctx.reply(text, withDraftInline(replyHtml));
 }
 
+export async function showRevisiPicker(ctx: Context): Promise<void> {
+  const pending = await getPendingApplication();
+  if (!pending) {
+    await ctx.reply(
+      joinBlocks(
+        bold("Belum ada draft"),
+        "Buat draft dulu ya, biar ada yang bisa direvisi.",
+      ),
+      withMainMenu(replyHtml),
+    );
+    return;
+  }
+  await ctx.reply(
+    joinBlocks(
+      bold("Mau ubah bagian mana?"),
+      "Pilih di bawah, atau ketik langsung misalnya:",
+      code("/revisi sapaan: Mbak"),
+    ),
+    { ...replyHtml, reply_markup: revisiFieldsInline() },
+  );
+}
+
 export async function handleMenuButton(
   ctx: Context,
   label: string,
 ): Promise<boolean> {
   const text = label.trim();
-  if (!isMainMenuButton(text)) return false;
-
   const telegramId = String(ctx.from!.id);
 
   if (text === MenuBtn.cancel) {
@@ -47,8 +72,8 @@ export async function handleMenuButton(
     const cancelled = await cancelPending();
     await ctx.reply(
       cancelled
-        ? joinBlocks(bold("Dibatalkan"), "Draft dibatalkan.")
-        : joinBlocks(bold("Info"), "Tidak ada draft yang dibatalkan."),
+        ? joinBlocks(bold("Oke, dibatalin"), "Draft kamu sudah aku buang.")
+        : joinBlocks(bold("Hmm"), "Nggak ada draft yang perlu dibatalin."),
       withMainMenu(replyHtml),
     );
     return true;
@@ -58,15 +83,14 @@ export async function handleMenuButton(
     await setSession(telegramId, "idle");
     await ctx.reply(
       joinBlocks(
-        bold("Bantuan cepat"),
-        "Pakai tombol di bawah, atau ketik perintah.",
+        bold("Bantuan singkat"),
+        "Pakai tombol di bawah, atau ketik perintah ini:",
         [
-          `${code("/cv")} upload CV`,
-          `${code("/draft")} buat email`,
-          "Setelah draft: tombol di bawah pesan (Ya / Revisi / Jadwal)",
-          `${code("/revisi sapaan: Mbak")} ubah cepat`,
-          `${code("/schedule 18:00")} jadwalkan`,
-          `${code("YA")} / ${code("KIRIM")} kirim sekarang`,
+          `${code("/cv")} — upload CV`,
+          `${code("/draft")} — buat email`,
+          `${code("/revisi sapaan: Mbak")} — ubah draft`,
+          `${code("/schedule 18:00")} — jadwalkan`,
+          `${code("YA")} — kirim sekarang`,
         ].join("\n"),
       ),
       withMainMenu(replyHtml),
@@ -79,8 +103,8 @@ export async function handleMenuButton(
     await ctx.reply(
       joinBlocks(
         bold("Upload CV"),
-        "Kirim file PDF CV sekarang.",
-        `Batal: ${code("BATAL")} atau tombol ${MenuBtn.cancel}`,
+        "Kirim PDF CV kamu sekarang ya.",
+        `Batal? Ketik ${code("BATAL")}.`,
       ),
       withMainMenu(replyHtml),
     );
@@ -90,7 +114,7 @@ export async function handleMenuButton(
   if (text === MenuBtn.draft) {
     await setSession(telegramId, "idle");
     await ctx.reply(
-      joinBlocks(bold("Draft"), "Menyusun email untuk lowongan terbaru…"),
+      joinBlocks(bold("Sebentar…"), "Aku lagi susun email buat lowongan terbaru kamu."),
       replyHtml,
     );
     try {
@@ -99,7 +123,7 @@ export async function handleMenuButton(
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       await ctx.reply(
-        joinBlocks(bold("Gagal membuat draft"), msg),
+        joinBlocks(bold("Draft gagal"), msg),
         withMainMenu(replyHtml),
       );
     }
@@ -115,7 +139,7 @@ export async function handleMenuButton(
     const items = await listScheduledApplications();
     const list =
       items.length === 0
-        ? "Belum ada email terjadwal."
+        ? "Belum ada yang dijadwal."
         : items
             .map((a) => {
               const when = a.scheduledAt ? formatWib(a.scheduledAt) : "—";
@@ -124,7 +148,7 @@ export async function handleMenuButton(
             .join("\n");
     await ctx.reply(
       joinBlocks(
-        bold("Jadwal pengiriman"),
+        bold("Jadwal kamu"),
         list,
         [
           `Contoh: ${code("/schedule 18:00")}`,
@@ -144,9 +168,8 @@ export async function handleMenuButton(
     if (jobs.length === 0) {
       await ctx.reply(
         joinBlocks(
-          bold("Lowongan"),
-          "Belum ada lowongan aktif.",
-          "Kirim teks, PDF, atau foto lowongan.",
+          bold("Belum ada lowongan"),
+          "Kirim aja teks, PDF, atau foto lowongannya ke aku.",
         ),
         withMainMenu(replyHtml),
       );
@@ -161,10 +184,10 @@ export async function handleMenuButton(
     );
     await ctx.reply(
       joinBlocks(
-        bold("Lowongan aktif"),
+        bold("Lowongan kamu"),
         divider(),
         ...blocks,
-        `Draft: tombol ${MenuBtn.draft} atau ${code("/draft <id>")}`,
+        `Mau draft? Pilih ${MenuBtn.draft} atau ${code("/draft <id>")}.`,
       ),
       withMainMenu(replyHtml),
     );
@@ -175,8 +198,8 @@ export async function handleMenuButton(
     await ctx.reply(
       joinBlocks(
         bold("Kirim email"),
-        "Kalau draft sudah siap: tekan ✅ Ya, kirim di bawah preview, atau ketik YA.",
-        `Atau set tujuan: ${code("/send email@domain.com")}`,
+        "Kalau draft sudah oke, tekan ✅ Ya, kirim di bawah preview — atau ketik YA.",
+        `Mau ganti tujuan? ${code("/send email@domain.com")}`,
       ),
       withMainMenu(replyHtml),
     );
@@ -188,8 +211,8 @@ export async function handleMenuButton(
     if (!previous) {
       await ctx.reply(
         joinBlocks(
-          bold("Follow-up"),
-          "Belum ada lamaran terkirim untuk di-follow-up.",
+          bold("Belum bisa follow-up"),
+          "Kirim lamaran dulu ya, baru kita follow-upin.",
         ),
         withMainMenu(replyHtml),
       );
@@ -201,9 +224,9 @@ export async function handleMenuButton(
     await ctx.reply(
       joinBlocks(
         bold("Follow-up"),
-        `Lamaran ${code(`#${previous.id}`)} · ${escapeHtml(previous.subject)}`,
-        "Kirim konteks follow-up (teks).",
-        `Batal: ${code("BATAL")}`,
+        `Dari lamaran ${code(`#${previous.id}`)} · ${escapeHtml(previous.subject)}`,
+        "Tulis aja konteks follow-upnya ke aku.",
+        `Batal? Ketik ${code("BATAL")}.`,
       ),
       withMainMenu(replyHtml),
     );
@@ -232,7 +255,7 @@ export async function handleMenuButton(
     const apps = await listRecentApplications(10);
     if (apps.length === 0) {
       await ctx.reply(
-        joinBlocks(bold("Status"), "Belum ada lamaran."),
+        joinBlocks(bold("Belum ada riwayat"), "Lamaran kamu masih kosong."),
         withMainMenu(replyHtml),
       );
       return true;
@@ -241,13 +264,13 @@ export async function handleMenuButton(
       const when = a.sentAt ?? a.createdAt;
       return [
         bold(`#${a.id} · ${a.status}`),
-        `Kepada: ${code(a.toEmail ?? "—")}`,
+        `Ke: ${code(a.toEmail ?? "—")}`,
         `Subject: ${escapeHtml(a.subject)}`,
         `Waktu: ${formatWib(when)}`,
       ].join("\n");
     });
     await ctx.reply(
-      joinBlocks(bold("Lamaran terakhir"), divider(), ...blocks),
+      joinBlocks(bold("Lamaran terakhir kamu"), divider(), ...blocks),
       withMainMenu(replyHtml),
     );
     return true;
@@ -257,6 +280,7 @@ export async function handleMenuButton(
     await ctx.reply(
       joinBlocks(
         bold("Hapus lowongan"),
+        "Pilih salah satu:",
         [code("/delete"), code("/delete 3"), code("/delete all")].join("\n"),
       ),
       withMainMenu(replyHtml),

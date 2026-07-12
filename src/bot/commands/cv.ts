@@ -12,9 +12,9 @@ export function registerCvCommand(bot: Bot): void {
     const text = joinBlocks(
       bold("Upload CV"),
       existing
-        ? "Kirim file PDF CV sekarang.\nCV lama akan diganti."
-        : "Kirim file PDF CV sekarang.\nFile ini menjadi CV default untuk lamaran.",
-      `Batal: ketik ${code("BATAL")}`,
+        ? "Kirim PDF CV kamu sekarang.\nCV lama akan aku ganti."
+        : "Kirim PDF CV kamu sekarang.\nIni jadi CV default buat lamaran kamu.",
+      `Batal? Ketik ${code("BATAL")}.`,
     );
 
     await ctx.reply(text, replyHtml);

@@ -69,8 +69,8 @@ export async function createDraftApplication(
   if (!job) {
     throw new Error(
       jobId
-        ? `Lowongan #${jobId} tidak ditemukan / sudah dihapus.`
-        : "Belum ada lowongan aktif. Kirim teks, PDF, atau foto lowongan dulu.",
+        ? `Lowongan #${jobId} nggak ketemu / sudah dihapus.`
+        : "Belum ada lowongan. Kirim teks, PDF, atau foto lowongan dulu ya.",
     );
   }
 
@@ -134,7 +134,7 @@ export async function createFollowUpDraft(
     include: { job: true },
   });
   if (!previous) {
-    throw new Error(`Lamaran #${fromApplicationId} tidak ditemukan.`);
+    throw new Error(`Lamaran #${fromApplicationId} nggak ketemu.`);
   }
 
   const language = resolveEmailLanguage(emailLangPref, previous.job.language);
@@ -206,21 +206,20 @@ export function formatDraftPreview(app: {
     [
       `Posisi: ${escapeHtml(app.job.position ?? "—")}`,
       `Perusahaan: ${escapeHtml(app.job.company ?? "—")}`,
-      `Kepada: ${code(to)}`,
+      `Ke: ${code(to)}`,
       `Subject: ${escapeHtml(app.subject)}`,
       `Lampiran: ${code(lampiran)}`,
       scheduleLine,
     ]
       .filter(Boolean)
       .join("\n"),
-    bold("Body"),
+    bold("Isi email"),
     escapeHtml(app.body),
     divider(),
     [
-      `Kirim sekarang: balas ${code("YA")} atau ${code("KIRIM")}`,
-      `Jadwal: ${code("/schedule 18:00")} atau ${code("/schedule 12/07/2026 18:00")}`,
-      `Revisi: ${code("/revisi sapaan: Mbak")} · ${code("/revisi nama: …, perusahaan: …")}`,
-      `Tanpa email: ${code("/send email@domain.com")}`,
+      `Kirim sekarang: ketik ${code("YA")} atau tekan tombol di bawah`,
+      `Jadwal: ${code("/schedule 18:00")}`,
+      `Revisi: tombol di bawah atau ${code("/revisi sapaan: Mbak")}`,
       `Batal: ${code("BATAL")}`,
     ].join("\n"),
   );
@@ -263,7 +262,7 @@ export async function schedulePending(
   if (!pending) {
     return {
       ok: false,
-      reason: "Tidak ada draft pending. Jalankan /draft dulu.",
+      reason: "Belum ada draft. Buat dulu dengan /draft ya.",
     };
   }
   const toEmail = pending.toEmail?.trim();
@@ -274,10 +273,10 @@ export async function schedulePending(
     };
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
-    return { ok: false, reason: "Format email tujuan tidak valid." };
+    return { ok: false, reason: "Format emailnya belum pas." };
   }
   if (at.getTime() <= Date.now() + 30_000) {
-    return { ok: false, reason: "Waktu jadwal harus di masa depan." };
+    return { ok: false, reason: "Waktunya harus di masa depan ya." };
   }
 
   await prisma.application.update({
@@ -347,12 +346,12 @@ export async function sendApplicationById(
     include: { job: true },
   });
   if (!pending) {
-    return { ok: false, reason: "Draft tidak ditemukan." };
+    return { ok: false, reason: "Draft-nya nggak ketemu." };
   }
   if (!["pending_confirm", "scheduled"].includes(pending.status)) {
     return {
       ok: false,
-      reason: `Status draft tidak bisa dikirim (${pending.status}).`,
+      reason: `Draft ini belum bisa dikirim (status: ${pending.status}).`,
     };
   }
 
@@ -365,7 +364,7 @@ export async function sendApplicationById(
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
-    return { ok: false, reason: "Format email tidak valid." };
+    return { ok: false, reason: "Format emailnya belum pas." };
   }
 
   const limit = await canSendEmail();
@@ -377,7 +376,7 @@ export async function sendApplicationById(
     );
     return {
       ok: false,
-      reason: `Batas harian tercapai (${limit.sentToday}/${limit.limit}). Coba lagi besok.`,
+      reason: `Batas harian sudah penuh (${limit.sentToday}/${limit.limit}). Coba lagi besok ya.`,
     };
   }
 
@@ -395,7 +394,7 @@ export async function sendApplicationById(
     if (!cvBuffer) {
       return {
         ok: false,
-        reason: "CV default tidak ditemukan. Upload ulang dengan /cv",
+        reason: "CV default belum ada. Upload dulu dengan /cv ya.",
       };
     }
 
@@ -438,7 +437,7 @@ export async function sendApplicationById(
       data: { status: "failed", toEmail },
     });
     await audit("send_failed", detail, pending.id);
-    return { ok: false, reason: `Gagal mengirim email: ${detail}` };
+    return { ok: false, reason: `Gagal kirim email: ${detail}` };
   }
 }
 
@@ -451,8 +450,7 @@ export async function confirmAndSend(opts?: {
   if (!pending) {
     return {
       ok: false,
-      reason:
-        "Tidak ada draft yang menunggu konfirmasi. Jalankan /draft dulu.",
+      reason: "Belum ada draft yang siap dikirim. Buat dulu dengan /draft ya.",
     };
   }
   return sendApplicationById(pending.id, opts);

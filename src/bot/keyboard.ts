@@ -1,6 +1,6 @@
-import { InlineKeyboard, Keyboard } from "grammy";
+import { InlineKeyboard } from "grammy";
 
-/** Label tombol menu utama (reply keyboard). */
+/** Label tombol menu utama (inline di bawah pesan). */
 export const MenuBtn = {
   cv: "📄 CV",
   draft: "✉️ Draft",
@@ -18,14 +18,22 @@ export const MenuBtn = {
 
 export type MenuButtonLabel = (typeof MenuBtn)[keyof typeof MenuBtn];
 
-const MAIN_LABELS = new Set<string>(Object.values(MenuBtn));
-
-export function isMainMenuButton(text: string): boolean {
-  return MAIN_LABELS.has(text.trim());
-}
-
-/** Callback data untuk aksi di bawah draft. */
+/** Callback data untuk menu utama & aksi draft. */
 export const Cb = {
+  menu: {
+    cv: "m:cv",
+    draft: "m:draft",
+    revisi: "m:revisi",
+    schedule: "m:sched",
+    jobs: "m:jobs",
+    send: "m:send",
+    followup: "m:follow",
+    lang: "m:lang",
+    status: "m:status",
+    delete: "m:del",
+    help: "m:help",
+    cancel: "m:cancel",
+  },
   send: "d:send",
   cancel: "d:cancel",
   revisi: "d:revisi",
@@ -35,28 +43,45 @@ export const Cb = {
   sapaan: (v: string) => `r:s:${v}`,
 } as const;
 
-/** Keyboard grid menu utama (2 kolom). */
-export function mainMenuKeyboard(): Keyboard {
-  return new Keyboard()
-    .text(MenuBtn.cv)
-    .text(MenuBtn.draft)
+const MENU_CALLBACK_TO_LABEL: Record<string, MenuButtonLabel> = {
+  [Cb.menu.cv]: MenuBtn.cv,
+  [Cb.menu.draft]: MenuBtn.draft,
+  [Cb.menu.revisi]: MenuBtn.revisi,
+  [Cb.menu.schedule]: MenuBtn.schedule,
+  [Cb.menu.jobs]: MenuBtn.jobs,
+  [Cb.menu.send]: MenuBtn.send,
+  [Cb.menu.followup]: MenuBtn.followup,
+  [Cb.menu.lang]: MenuBtn.lang,
+  [Cb.menu.status]: MenuBtn.status,
+  [Cb.menu.delete]: MenuBtn.delete,
+  [Cb.menu.help]: MenuBtn.help,
+  [Cb.menu.cancel]: MenuBtn.cancel,
+};
+
+export function labelForMenuCallback(data: string): MenuButtonLabel | null {
+  return MENU_CALLBACK_TO_LABEL[data] ?? null;
+}
+
+/** Keyboard inline menu utama (di bawah pesan bot). */
+export function mainMenuInline(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text(MenuBtn.cv, Cb.menu.cv)
+    .text(MenuBtn.draft, Cb.menu.draft)
     .row()
-    .text(MenuBtn.revisi)
-    .text(MenuBtn.schedule)
+    .text(MenuBtn.revisi, Cb.menu.revisi)
+    .text(MenuBtn.schedule, Cb.menu.schedule)
     .row()
-    .text(MenuBtn.jobs)
-    .text(MenuBtn.send)
+    .text(MenuBtn.jobs, Cb.menu.jobs)
+    .text(MenuBtn.send, Cb.menu.send)
     .row()
-    .text(MenuBtn.followup)
-    .text(MenuBtn.lang)
+    .text(MenuBtn.followup, Cb.menu.followup)
+    .text(MenuBtn.lang, Cb.menu.lang)
     .row()
-    .text(MenuBtn.status)
-    .text(MenuBtn.delete)
+    .text(MenuBtn.status, Cb.menu.status)
+    .text(MenuBtn.delete, Cb.menu.delete)
     .row()
-    .text(MenuBtn.help)
-    .text(MenuBtn.cancel)
-    .resized()
-    .persistent();
+    .text(MenuBtn.help, Cb.menu.help)
+    .text(MenuBtn.cancel, Cb.menu.cancel);
 }
 
 /** Tombol di bawah pesan preview draft (inline — chat tetap full). */
@@ -101,10 +126,16 @@ export function sapaanInline(): InlineKeyboard {
     .text("« Kembali", Cb.revisi);
 }
 
+/** Hapus reply keyboard lama (grid bawah layar). */
+export const removeReplyKeyboard = {
+  remove_keyboard: true as const,
+};
+
+/** Attach menu utama inline di bawah pesan. */
 export function withMainMenu<T extends Record<string, unknown>>(
   extra: T,
-): T & { reply_markup: Keyboard } {
-  return { ...extra, reply_markup: mainMenuKeyboard() };
+): T & { reply_markup: InlineKeyboard } {
+  return { ...extra, reply_markup: mainMenuInline() };
 }
 
 /** Attach inline actions under a draft preview reply. */

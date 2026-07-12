@@ -16,10 +16,10 @@ export function registerDraftCommand(bot: Bot): void {
       if (!Number.isInteger(n) || n <= 0) {
         await ctx.reply(
           joinBlocks(
-            bold("Cara pakai"),
+            bold("Cara pakainya"),
             code("/draft"),
             code("/draft 3"),
-            "Nomor = ID lowongan dari /jobs",
+            "Angka = ID lowongan dari daftar kamu.",
           ),
           withMainMenu(replyHtml),
         );
@@ -30,10 +30,10 @@ export function registerDraftCommand(bot: Bot): void {
 
     await ctx.reply(
       joinBlocks(
-        bold("Draft"),
+        bold("Sebentar…"),
         jobId
-          ? `Menyusun email untuk lowongan ${code(`#${jobId}`)}…`
-          : "Menyusun email untuk lowongan terbaru…",
+          ? `Aku susun email buat lowongan ${code(`#${jobId}`)}.`
+          : "Aku susun email buat lowongan terbaru kamu.",
       ),
       replyHtml,
     );
@@ -52,7 +52,7 @@ export function registerDraftCommand(bot: Bot): void {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       await ctx.reply(
-        joinBlocks(bold("Gagal membuat draft"), msg),
+        joinBlocks(bold("Draft gagal"), msg),
         withMainMenu(replyHtml),
       );
     }

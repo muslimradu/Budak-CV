@@ -14,16 +14,13 @@ import { withDraftInline, withMainMenu } from "../keyboard.js";
 
 const HELP = joinBlocks(
   bold("Revisi draft"),
-  "Langsung isi field di perintah (bisa beberapa sekaligus):",
+  "Langsung tulis yang mau diubah, bisa sekaligus:",
   [
-    `${code("/revisi sapaan: Mbak")}`,
-    `${code("/revisi nama: Dodit Mulyanto, sapaan: Mas")}`,
-    `${code("/revisi nama: Dodit Mulyanto, sapaan: Mas, perusahaan: PT Angin Ribut")}`,
+    code("/revisi sapaan: Mbak"),
+    code("/revisi nama: Dodit, sapaan: Mas"),
+    code("/revisi nama: Dodit, sapaan: Mas, perusahaan: PT Angin Ribut"),
   ].join("\n"),
-  [
-    bold("Field"),
-    "perusahaan · posisi · email · nama · sapaan · subject · body",
-  ].join("\n"),
+  "Field: perusahaan · posisi · email · nama · sapaan · subject · body",
 );
 
 export function registerRevisiCommand(bot: Bot): void {
@@ -40,9 +37,8 @@ export function registerRevisiCommand(bot: Bot): void {
     if (Object.keys(updates).length === 0) {
       await ctx.reply(
         joinBlocks(
-          bold("Format tidak dikenali"),
-          `Contoh: ${code("/revisi sapaan: Mbak")}`,
-          `Atau: ${code("/revisi nama: Dodit, sapaan: Mas, perusahaan: Acme")}`,
+          bold("Formatnya belum pas"),
+          `Coba kayak gini: ${code("/revisi sapaan: Mbak")}`,
         ),
         withMainMenu(replyHtml),
       );
@@ -53,8 +49,8 @@ export function registerRevisiCommand(bot: Bot): void {
     if (!pending) {
       await ctx.reply(
         joinBlocks(
-          bold("Tidak ada draft"),
-          `Buat draft dulu dengan ${code("/draft")}.`,
+          bold("Belum ada draft"),
+          "Buat draft dulu ya, baru kita revisi.",
         ),
         withMainMenu(replyHtml),
       );
@@ -66,7 +62,7 @@ export function registerRevisiCommand(bot: Bot): void {
     );
     if (needsWait) {
       await ctx.reply(
-        joinBlocks(bold("Revisi"), "Memperbarui draft…"),
+        joinBlocks(bold("Sebentar…"), "Aku update draft kamu."),
         replyHtml,
       );
     }
@@ -80,7 +76,7 @@ export function registerRevisiCommand(bot: Bot): void {
       const app = await getApplicationForPreview(applicationId);
       if (!app) {
         await ctx.reply(
-          joinBlocks(bold("Gagal"), "Draft tidak ditemukan setelah revisi."),
+          joinBlocks(bold("Ups"), "Draft-nya hilang setelah direvisi."),
           replyHtml,
         );
         return;
@@ -92,9 +88,9 @@ export function registerRevisiCommand(bot: Bot): void {
 
       await ctx.reply(
         joinBlocks(
-          bold("Revisi tersimpan"),
-          `Diubah: ${escapeHtml(changedLabels)}`,
-          "Konfirmasi ulang draft:",
+          bold("Sudah diubah"),
+          `Yang berubah: ${escapeHtml(changedLabels)}`,
+          "Cek lagi draft-nya di bawah ya:",
         ),
         replyHtml,
       );
@@ -106,7 +102,7 @@ export function registerRevisiCommand(bot: Bot): void {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       await ctx.reply(
-        joinBlocks(bold("Gagal revisi"), msg),
+        joinBlocks(bold("Revisi gagal"), msg),
         withMainMenu(replyHtml),
       );
     }

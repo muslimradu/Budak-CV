@@ -23,13 +23,13 @@ import {
 } from "../format.js";
 import {
   Cb,
-  draftActionsInline,
-  revisiFieldsInline,
+  labelForMenuCallback,
   sapaanInline,
   withDraftInline,
   withMainMenu,
 } from "../keyboard.js";
 import { clearSession, setSession } from "../session.js";
+import { handleMenuButton, showRevisiPicker } from "./menu.js";
 
 const REVISI_FIELDS = new Set<string>([
   "company",
@@ -48,7 +48,7 @@ async function replyPreview(
   const app = await getApplicationForPreview(applicationId);
   if (!app) {
     await ctx.reply(
-      joinBlocks(bold("Gagal"), "Draft tidak ditemukan."),
+      joinBlocks(bold("Ups"), "Draft-nya nggak ketemu."),
       withMainMenu(replyHtml),
     );
     return;
@@ -57,28 +57,6 @@ async function replyPreview(
   await ctx.reply(
     preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
     withDraftInline(replyHtml),
-  );
-}
-
-async function showRevisiPicker(ctx: Context): Promise<void> {
-  const pending = await getPendingApplication();
-  if (!pending) {
-    await ctx.reply(
-      joinBlocks(
-        bold("Tidak ada draft"),
-        `Buat draft dulu dengan ${code("/draft")}.`,
-      ),
-      withMainMenu(replyHtml),
-    );
-    return;
-  }
-  await ctx.reply(
-    joinBlocks(
-      bold("Revisi draft"),
-      "Pilih field di bawah pesan ini.",
-      `Atau ketik: ${code("/revisi sapaan: Mbak")}`,
-    ),
-    { ...replyHtml, reply_markup: revisiFieldsInline() },
   );
 }
 
@@ -92,8 +70,8 @@ async function applyFieldUpdate(
   if (!pending) {
     await ctx.reply(
       joinBlocks(
-        bold("Tidak ada draft"),
-        `Buat draft dulu dengan ${code("/draft")}.`,
+        bold("Belum ada draft"),
+        "Buat draft dulu ya, baru kita revisi.",
       ),
       withMainMenu(replyHtml),
     );
@@ -105,7 +83,7 @@ async function applyFieldUpdate(
   );
   if (needsWait) {
     await ctx.reply(
-      joinBlocks(bold("Revisi"), "Memperbarui draft…"),
+      joinBlocks(bold("Sebentar…"), "Aku update draft kamu."),
       replyHtml,
     );
   }
@@ -120,9 +98,9 @@ async function applyFieldUpdate(
     const labels = changed.map((f) => REVISI_FIELD_LABELS[f]).join(", ");
     await ctx.reply(
       joinBlocks(
-        bold("Revisi tersimpan"),
-        `Diubah: ${escapeHtml(labels)}`,
-        "Konfirmasi ulang draft:",
+        bold("Sudah diubah"),
+        `Yang berubah: ${escapeHtml(labels)}`,
+        "Cek lagi draft-nya di bawah ya:",
       ),
       replyHtml,
     );
@@ -130,7 +108,7 @@ async function applyFieldUpdate(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     await ctx.reply(
-      joinBlocks(bold("Gagal revisi"), msg),
+      joinBlocks(bold("Revisi gagal"), msg),
       withMainMenu(replyHtml),
     );
   }
@@ -143,15 +121,24 @@ export function registerCallbackHandlers(bot: Bot): void {
 
     await ctx.answerCallbackQuery();
 
+    const menuLabel = labelForMenuCallback(data);
+    if (menuLabel) {
+      await handleMenuButton(ctx, menuLabel);
+      return;
+    }
+
     if (data === Cb.send) {
-      await ctx.reply(joinBlocks(bold("Mengirim"), "Mohon tunggu…"), replyHtml);
+      await ctx.reply(
+        joinBlocks(bold("Mengirim…"), "Tunggu sebentar ya."),
+        replyHtml,
+      );
       const result = await confirmAndSend();
       if (result.ok) {
         await ctx.reply(
           joinBlocks(
-            bold("Terkirim"),
-            `Kepada: ${code(result.to)}`,
-            `Message ID: ${code(result.messageId)}`,
+            bold("Sudah terkirim"),
+            `Ke: ${code(result.to)}`,
+            `ID: ${code(result.messageId)}`,
           ),
           withMainMenu(replyHtml),
         );
@@ -169,8 +156,8 @@ export function registerCallbackHandlers(bot: Bot): void {
       const cancelled = await cancelPending();
       await ctx.reply(
         cancelled
-          ? joinBlocks(bold("Dibatalkan"), "Draft dibatalkan.")
-          : joinBlocks(bold("Info"), "Tidak ada draft yang dibatalkan."),
+          ? joinBlocks(bold("Oke, dibatalin"), "Draft kamu sudah aku buang.")
+          : joinBlocks(bold("Hmm"), "Nggak ada draft yang perlu dibatalin."),
         withMainMenu(replyHtml),
       );
       return;
@@ -180,7 +167,7 @@ export function registerCallbackHandlers(bot: Bot): void {
       const items = await listScheduledApplications();
       const list =
         items.length === 0
-          ? "Belum ada email terjadwal."
+          ? "Belum ada yang dijadwal."
           : items
               .map((a) => {
                 const when = a.scheduledAt ? formatWib(a.scheduledAt) : "—";
@@ -189,7 +176,7 @@ export function registerCallbackHandlers(bot: Bot): void {
               .join("\n");
       await ctx.reply(
         joinBlocks(
-          bold("Jadwal pengiriman"),
+          bold("Jadwal kamu"),
           list,
           [
             `Contoh: ${code("/schedule 18:00")}`,
@@ -216,7 +203,7 @@ export function registerCallbackHandlers(bot: Bot): void {
 
       if (revisiField === "sapaan") {
         await ctx.reply(
-          joinBlocks(bold("Pilih sapaan"), "Atau ketik nilai custom."),
+          joinBlocks(bold("Pilih sapaan"), "Atau ketik sendiri kalau mau."),
           { ...replyHtml, reply_markup: sapaanInline() },
         );
         return;
@@ -226,8 +213,8 @@ export function registerCallbackHandlers(bot: Bot): void {
       if (!pending) {
         await ctx.reply(
           joinBlocks(
-            bold("Tidak ada draft"),
-            `Buat draft dulu dengan ${code("/draft")}.`,
+            bold("Belum ada draft"),
+            "Buat draft dulu ya, baru kita revisi.",
           ),
           withMainMenu(replyHtml),
         );
@@ -240,9 +227,9 @@ export function registerCallbackHandlers(bot: Bot): void {
       });
       await ctx.reply(
         joinBlocks(
-          bold(`Revisi · ${REVISI_FIELD_LABELS[revisiField]}`),
-          "Kirim nilai baru sekarang.",
-          `Batal: ${code("BATAL")}`,
+          bold(`Ubah ${REVISI_FIELD_LABELS[revisiField]}`),
+          "Kirim nilai barunya sekarang ya.",
+          `Batal? Ketik ${code("BATAL")}.`,
         ),
         withMainMenu(replyHtml),
       );
@@ -257,5 +244,3 @@ export function registerCallbackHandlers(bot: Bot): void {
     }
   });
 }
-
-export { showRevisiPicker };

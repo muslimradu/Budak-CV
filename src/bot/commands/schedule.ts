@@ -24,13 +24,13 @@ export function registerScheduleCommand(bot: Bot): void {
       if (items.length === 0) {
         await ctx.reply(
           joinBlocks(
-            bold("Jadwal pengiriman"),
-            "Belum ada email terjadwal.",
+            bold("Jadwal kamu"),
+            "Belum ada yang dijadwal.",
             [
               `Contoh: ${code("/schedule 18:00")}`,
-              `${code("/schedule 12/07/2026 18:00")}`,
+              code("/schedule 12/07/2026 18:00"),
               `${code("/schedule +30m")} · ${code("/schedule +2h")}`,
-              `${code("/schedule batal")} — batalkan semua jadwal`,
+              `${code("/schedule batal")} — batalin semua`,
             ].join("\n"),
           ),
           replyHtml,
@@ -48,9 +48,9 @@ export function registerScheduleCommand(bot: Bot): void {
 
       await ctx.reply(
         joinBlocks(
-          bold("Email terjadwal"),
+          bold("Yang sudah dijadwal"),
           lines.join("\n\n"),
-          `Batalkan: ${code("/schedule batal")} atau ${code("/schedule batal 12")}`,
+          `Batalin: ${code("/schedule batal")} atau ${code("/schedule batal 12")}`,
         ),
         replyHtml,
       );
@@ -61,26 +61,27 @@ export function registerScheduleCommand(bot: Bot): void {
       const count = await cancelScheduled();
       await ctx.reply(
         joinBlocks(
-          bold(count > 0 ? "Jadwal dibatalkan" : "Info"),
+          bold(count > 0 ? "Oke, dibatalin" : "Hmm"),
           count > 0
-            ? `${count} email terjadwal dibatalkan.`
-            : "Tidak ada jadwal aktif.",
+            ? `${count} jadwal sudah aku batalin.`
+            : "Nggak ada jadwal aktif.",
         ),
         replyHtml,
       );
       return;
     }
 
-    const batalId = lower.match(/^batal\s+(\d+)$/) ?? lower.match(/^cancel\s+(\d+)$/);
+    const batalId =
+      lower.match(/^batal\s+(\d+)$/) ?? lower.match(/^cancel\s+(\d+)$/);
     if (batalId) {
       const id = Number(batalId[1]);
       const count = await cancelScheduled(id);
       await ctx.reply(
         joinBlocks(
-          bold(count > 0 ? "Jadwal dibatalkan" : "Tidak ditemukan"),
+          bold(count > 0 ? "Oke, dibatalin" : "Nggak ketemu"),
           count > 0
-            ? `Draft ${code(`#${id}`)} dibatalkan.`
-            : `Tidak ada jadwal #${id}.`,
+            ? `Draft ${code(`#${id}`)} sudah aku batalin.`
+            : `Nggak ada jadwal #${id}.`,
         ),
         replyHtml,
       );
@@ -90,7 +91,7 @@ export function registerScheduleCommand(bot: Bot): void {
     const parsed = parseScheduleInput(arg);
     if (!parsed.ok) {
       await ctx.reply(
-        joinBlocks(bold("Format jadwal salah"), parsed.reason),
+        joinBlocks(bold("Format jadwalnya belum pas"), parsed.reason),
         replyHtml,
       );
       return;
@@ -99,7 +100,7 @@ export function registerScheduleCommand(bot: Bot): void {
     const result = await schedulePending(parsed.at);
     if (!result.ok) {
       await ctx.reply(
-        joinBlocks(bold("Gagal menjadwalkan"), result.reason),
+        joinBlocks(bold("Gagal dijadwal"), result.reason),
         replyHtml,
       );
       return;
@@ -107,11 +108,11 @@ export function registerScheduleCommand(bot: Bot): void {
 
     await ctx.reply(
       joinBlocks(
-        bold("Terjadwal"),
+        bold("Siap, sudah dijadwal"),
         `Draft ${code(`#${result.applicationId}`)}`,
-        `Kepada: ${code(result.to)}`,
+        `Ke: ${code(result.to)}`,
         `Waktu: ${formatWib(result.at)}`,
-        `Batalkan: ${code(`/schedule batal ${result.applicationId}`)}`,
+        `Batalin: ${code(`/schedule batal ${result.applicationId}`)}`,
       ),
       replyHtml,
     );

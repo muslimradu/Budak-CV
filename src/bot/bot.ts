@@ -15,18 +15,9 @@ import { registerMessageHandlers } from "./handlers/messages.js";
 import { registerCallbackHandlers } from "./handlers/callbacks.js";
 import { bold, joinBlocks, replyHtml } from "./format.js";
 
+/** Hanya /start di menu garis tiga Telegram. */
 const COMMAND_MENU = [
-  { command: "start", description: "Panduan & menu utama" },
-  { command: "cv", description: "Upload PDF CV default" },
-  { command: "draft", description: "Draft email (/draft atau /draft 3)" },
-  { command: "revisi", description: "Revisi: /revisi sapaan: Mbak" },
-  { command: "schedule", description: "Jadwalkan kirim (/schedule 18:00)" },
-  { command: "followup", description: "Draft follow-up lamaran" },
-  { command: "lang", description: "Bahasa email: auto / en / id" },
-  { command: "send", description: "Kirim ke email@domain.com" },
-  { command: "jobs", description: "Lihat lowongan aktif" },
-  { command: "delete", description: "Hapus lowongan (/delete 3)" },
-  { command: "status", description: "Riwayat lamaran" },
+  { command: "start", description: "Halo & menu utama" },
 ] as const;
 
 export function createBot(): Bot {
@@ -38,7 +29,10 @@ export function createBot(): Bot {
     if (fromId === undefined || String(fromId) !== allowedId) {
       if (ctx.message) {
         await ctx.reply(
-          joinBlocks(bold("Akses ditolak"), "Bot ini pribadi."),
+          joinBlocks(
+            bold("Maaf ya"),
+            "Bot ini pribadi milik Radu.\nKalau tertarik, chat @radudluffy09.",
+          ),
           replyHtml,
         );
       }

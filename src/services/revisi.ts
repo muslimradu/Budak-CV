@@ -121,7 +121,7 @@ async function regenerateDraftBody(
     where: { id: applicationId },
     include: { job: true },
   });
-  if (!app) throw new Error("Draft tidak ditemukan.");
+  if (!app) throw new Error("Draft-nya nggak ketemu.");
 
   const cv = await getCvContext(telegramId);
   const emailLangPref = await getEmailLanguagePref(telegramId);
@@ -174,7 +174,7 @@ async function applyOneField(
   rawValue: string,
 ): Promise<void> {
   const value = rawValue.trim();
-  if (!value) throw new Error(`Nilai ${REVISI_FIELD_LABELS[field]} kosong.`);
+  if (!value) throw new Error(`${REVISI_FIELD_LABELS[field]}-nya masih kosong.`);
 
   if (field === "company") {
     await prisma.jobPosting.update({
@@ -192,7 +192,7 @@ async function applyOneField(
   }
   if (field === "email") {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      throw new Error("Format email tidak valid.");
+      throw new Error("Format emailnya belum pas.");
     }
     const inferredName = nameFromEmailLocalPart(value);
     await prisma.jobPosting.update({
@@ -212,7 +212,7 @@ async function applyOneField(
     const name = cleanRecipientName(value);
     if (!name) {
       throw new Error(
-        "Nama penerima tidak valid. Contoh: Budi Santoso (bukan Tim Rekrutmen).",
+        "Nama penerimanya belum pas. Contoh: Budi Santoso (bukan Tim Rekrutmen).",
       );
     }
     await prisma.jobPosting.update({
@@ -233,7 +233,7 @@ async function applyOneField(
     const honorific = parseHonorific(value);
     if (!honorific) {
       throw new Error(
-        "Sapaan tidak valid. Pilih: bapak · ibu · mas · mbak · mr · ms · mrs",
+        "Sapaan belum pas. Pilih: bapak · ibu · mas · mbak · mr · ms · mrs",
       );
     }
     await prisma.jobPosting.update({
@@ -251,7 +251,7 @@ async function applyOneField(
   }
   if (field === "body") {
     if (value.length < 20) {
-      throw new Error("Body terlalu pendek.");
+      throw new Error("Isi emailnya terlalu pendek.");
     }
     await prisma.application.update({
       where: { id: pending.id },
@@ -270,7 +270,7 @@ export async function applyRevisiUpdates(input: {
   ).filter(([, v]) => v.trim().length > 0);
 
   if (entries.length === 0) {
-    throw new Error("Tidak ada field revisi yang valid.");
+    throw new Error("Belum ada field revisi yang valid.");
   }
 
   const pending = await prisma.application.findFirst({
@@ -281,7 +281,7 @@ export async function applyRevisiUpdates(input: {
     include: { job: true },
   });
   if (!pending) {
-    throw new Error("Draft tidak ditemukan / sudah tidak aktif.");
+    throw new Error("Draft-nya nggak ketemu / sudah tidak aktif.");
   }
 
   const changed: RevisiField[] = [];

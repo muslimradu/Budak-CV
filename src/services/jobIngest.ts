@@ -116,11 +116,11 @@ export function formatJobSummary(job: {
           .filter((x) => x && x !== "—")
           .join(" ") || "—",
       )}`,
-      `Email: ${code(job.recruiterEmail ?? "tidak terdeteksi")}`,
+      `Email: ${code(job.recruiterEmail ?? "belum ketemu")}`,
       `Subject: ${escapeHtml(job.emailSubject ?? "otomatis [Posisi] - [Nama]")}`,
       `Bahasa: ${escapeHtml(job.language)}`,
     ].join("\n"),
     [bold("Requirement"), reqLines].join("\n"),
-    `Lanjut: ${code("/draft")}`,
+    `Lanjut? ${code("/draft")}`,
   );
 }

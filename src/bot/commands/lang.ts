@@ -25,7 +25,7 @@ export function registerLangCommand(bot: Bot): void {
           bold("Bahasa email"),
           `Sekarang: ${code(formatLanguageLabel(current))}`,
           [
-            `${code("/lang auto")} — ikuti bahasa lowongan`,
+            `${code("/lang auto")} — ikut bahasa lowongan`,
             `${code("/lang en")} — selalu English`,
             `${code("/lang id")} — selalu Indonesia`,
           ].join("\n"),
@@ -38,7 +38,7 @@ export function registerLangCommand(bot: Bot): void {
     if (!VALID.includes(arg as EmailLanguagePref)) {
       await ctx.reply(
         joinBlocks(
-          bold("Pilihan tidak valid"),
+          bold("Pilihannya belum pas"),
           `Pakai: ${code("/lang auto")} · ${code("/lang en")} · ${code("/lang id")}`,
         ),
         replyHtml,
@@ -54,11 +54,11 @@ export function registerLangCommand(bot: Bot): void {
 
     await ctx.reply(
       joinBlocks(
-        bold("Bahasa email diubah"),
+        bold("Oke, sudah diubah"),
         formatLanguageLabel(arg),
         arg === "auto"
-          ? "Draft berikutnya mengikuti bahasa lowongan."
-          : `Draft berikutnya dipaksa ${arg === "en" ? "English" : "Indonesia"}.`,
+          ? "Draft berikutnya ikut bahasa lowongan."
+          : `Draft berikutnya aku paksa ${arg === "en" ? "English" : "Indonesia"}.`,
       ),
       replyHtml,
     );

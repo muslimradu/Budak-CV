@@ -22,7 +22,7 @@ export function registerDeleteCommand(bot: Bot): void {
       const jobs = await listActiveJobs(10);
       if (jobs.length === 0) {
         await ctx.reply(
-          joinBlocks(bold("Hapus lowongan"), "Tidak ada lowongan aktif."),
+          joinBlocks(bold("Hapus lowongan"), "Nggak ada lowongan aktif."),
           replyHtml,
         );
         return;
@@ -37,13 +37,10 @@ export function registerDeleteCommand(bot: Bot): void {
 
       await ctx.reply(
         joinBlocks(
-          bold("Hapus lowongan"),
+          bold("Mau hapus yang mana?"),
           divider(),
           ...blocks,
-          [
-            code("/delete 3"),
-            code("/delete all"),
-          ].join("\n"),
+          [code("/delete 3"), code("/delete all")].join("\n"),
         ),
         replyHtml,
       );
@@ -54,10 +51,10 @@ export function registerDeleteCommand(bot: Bot): void {
       const count = await deleteAllActiveJobs();
       await ctx.reply(
         joinBlocks(
-          bold("Selesai"),
+          bold(count > 0 ? "Berhasil" : "Hmm"),
           count > 0
-            ? `${count} lowongan diarsipkan.`
-            : "Tidak ada lowongan aktif.",
+            ? `${count} lowongan sudah aku arsipkan.`
+            : "Nggak ada lowongan aktif.",
         ),
         replyHtml,
       );
@@ -68,7 +65,7 @@ export function registerDeleteCommand(bot: Bot): void {
     if (!Number.isInteger(id) || id <= 0) {
       await ctx.reply(
         joinBlocks(
-          bold("Cara pakai"),
+          bold("Cara pakainya"),
           code("/delete"),
           code("/delete 3"),
           code("/delete all"),
@@ -81,10 +78,13 @@ export function registerDeleteCommand(bot: Bot): void {
     const ok = await deleteJobById(id);
     await ctx.reply(
       ok
-        ? joinBlocks(bold("Selesai"), `Lowongan ${code(`#${id}`)} dihapus.`)
+        ? joinBlocks(
+            bold("Berhasil"),
+            `Lowongan ${code(`#${id}`)} sudah aku hapus.`,
+          )
         : joinBlocks(
-            bold("Gagal"),
-            `Lowongan ${code(`#${id}`)} tidak ditemukan.`,
+            bold("Nggak ketemu"),
+            `Lowongan ${code(`#${id}`)} nggak ada.`,
           ),
       replyHtml,
     );

@@ -11,9 +11,9 @@ export function registerSendCommand(bot: Bot): void {
     if (!email) {
       await ctx.reply(
         joinBlocks(
-          bold("Cara pakai"),
+          bold("Cara pakainya"),
           code("/send email@domain.com"),
-          "Perintah ini sekaligus mengonfirmasi pengiriman.",
+          "Ini sekaligus mengirim emailnya.",
         ),
         replyHtml,
       );
@@ -21,21 +21,24 @@ export function registerSendCommand(bot: Bot): void {
     }
 
     await ctx.reply(
-      joinBlocks(bold("Mengirim"), `Ke: ${code(email)}`),
+      joinBlocks(bold("Mengirim…"), `Ke: ${code(email)}`),
       replyHtml,
     );
     const result = await confirmAndSend({ toEmail: email });
     if (result.ok) {
       await ctx.reply(
         joinBlocks(
-          bold("Terkirim"),
-          `Kepada: ${code(result.to)}`,
-          `Message ID: ${code(result.messageId)}`,
+          bold("Sudah terkirim"),
+          `Ke: ${code(result.to)}`,
+          `ID: ${code(result.messageId)}`,
         ),
         replyHtml,
       );
     } else {
-      await ctx.reply(joinBlocks(bold("Gagal kirim"), result.reason), replyHtml);
+      await ctx.reply(
+        joinBlocks(bold("Gagal kirim"), result.reason),
+        replyHtml,
+      );
     }
   });
 }

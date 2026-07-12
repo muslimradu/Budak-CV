@@ -22,10 +22,10 @@ async function startFollowUp(
     if (!Number.isInteger(n) || n <= 0) {
       await ctx.reply(
         joinBlocks(
-          bold("Cara pakai"),
+          bold("Cara pakainya"),
           code("/followup"),
           code("/followup 5"),
-          "Nomor = ID lamaran dari /status (yang sudah sent).",
+          "Angka = ID lamaran dari /status (yang sudah terkirim).",
         ),
         replyHtml,
       );
@@ -41,10 +41,10 @@ async function startFollowUp(
   if (!previous || previous.status !== "sent") {
     await ctx.reply(
       joinBlocks(
-        bold("Follow-up"),
+        bold("Belum bisa follow-up"),
         appId
           ? `Lamaran ${code(`#${appId}`)} belum ada / belum terkirim.`
-          : "Belum ada lamaran terkirim. Kirim lamaran dulu, atau pakai /followup <id>.",
+          : "Kirim lamaran dulu ya, atau pakai /followup <id>.",
       ),
       replyHtml,
     );
@@ -59,16 +59,16 @@ async function startFollowUp(
     joinBlocks(
       bold("Follow-up"),
       [
-        `Berdasarkan lamaran ${code(`#${previous.id}`)}`,
+        `Dari lamaran ${code(`#${previous.id}`)}`,
         `Posisi: ${escapeHtml(previous.job.position ?? "—")}`,
         `Perusahaan: ${escapeHtml(previous.job.company ?? "—")}`,
         `Subject: ${escapeHtml(previous.subject)}`,
       ].join("\n"),
-      "Tuliskan konteks follow-up Anda (satu pesan), misalnya:",
+      "Tulis konteks follow-upnya ke aku, misalnya:",
       code(
         "Sudah 1 minggu sejak lamaran dikirim, ingin menanyakan status seleksi.",
       ),
-      `Batal: ${code("BATAL")}`,
+      `Batal? Ketik ${code("BATAL")}.`,
     ),
     replyHtml,
   );
@@ -79,7 +79,6 @@ export function registerFollowUpCommand(bot: Bot): void {
     await startFollowUp(ctx, ctx.match as string | undefined);
   });
 
-  // Alias /follow-up dan /follow_up (Telegram command resmi: followup)
   bot.hears(/^\/follow[-_]up(?:@\w+)?(?:\s+(\S+))?$/i, async (ctx) => {
     await startFollowUp(ctx, ctx.match?.[1]);
   });
