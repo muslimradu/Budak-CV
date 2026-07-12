@@ -10,6 +10,7 @@ import {
   getApplicationForPreview,
 } from "../../services/applicationFlow.js";
 import { bold, code, escapeHtml, joinBlocks, replyHtml } from "../format.js";
+import { withDraftConfirmMenu, withMainMenu } from "../keyboard.js";
 
 const HELP = joinBlocks(
   bold("Revisi draft"),
@@ -31,7 +32,7 @@ export function registerRevisiCommand(bot: Bot): void {
     const arg = (ctx.match ?? "").toString().trim();
 
     if (!arg) {
-      await ctx.reply(HELP, replyHtml);
+      await ctx.reply(HELP, withMainMenu(replyHtml));
       return;
     }
 
@@ -43,7 +44,7 @@ export function registerRevisiCommand(bot: Bot): void {
           `Contoh: ${code("/revisi sapaan: Mbak")}`,
           `Atau: ${code("/revisi nama: Dodit, sapaan: Mas, perusahaan: Acme")}`,
         ),
-        replyHtml,
+        withMainMenu(replyHtml),
       );
       return;
     }
@@ -55,7 +56,7 @@ export function registerRevisiCommand(bot: Bot): void {
           bold("Tidak ada draft"),
           `Buat draft dulu dengan ${code("/draft")}.`,
         ),
-        replyHtml,
+        withMainMenu(replyHtml),
       );
       return;
     }
@@ -100,11 +101,14 @@ export function registerRevisiCommand(bot: Bot): void {
       const preview = formatDraftPreview(app);
       await ctx.reply(
         preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
-        replyHtml,
+        withDraftConfirmMenu(replyHtml),
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      await ctx.reply(joinBlocks(bold("Gagal revisi"), msg), replyHtml);
+      await ctx.reply(
+        joinBlocks(bold("Gagal revisi"), msg),
+        withMainMenu(replyHtml),
+      );
     }
   });
 }

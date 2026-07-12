@@ -27,6 +27,12 @@ import {
   parseJobFieldReply,
 } from "../../services/jobComplete.js";
 import { bold, code, joinBlocks, replyHtml } from "../format.js";
+import { handleMenuButton } from "./menu.js";
+import {
+  isConfirmButton,
+  isMainMenuButton,
+  withMainMenu,
+} from "../keyboard.js";
 
 async function downloadTelegramFile(
   bot: Bot,
@@ -64,9 +70,9 @@ async function saveCvFromBuffer(
         `Nama: ${saved.profile.fullName ?? "—"}`,
         `Lampiran: ${code(saved.attachmentFilename)}`,
       ].join("\n"),
-      `Lanjut: kirim lowongan, lalu ${code("/draft")}`,
+      `Lanjut: kirim lowongan, lalu tombol ${code("✉️ Draft")} atau ${code("/draft")}`,
     ),
-    replyHtml,
+    withMainMenu(replyHtml),
   );
 }
 
@@ -92,7 +98,7 @@ async function replyAfterJobIngest(
     await ctx.reply(formatMissingFieldsPrompt(job.id, missing), replyHtml);
     return;
   }
-  await ctx.reply(formatJobSummary(job), replyHtml);
+  await ctx.reply(formatJobSummary(job), withMainMenu(replyHtml));
 }
 
 export function registerMessageHandlers(bot: Bot): void {
@@ -223,6 +229,12 @@ export function registerMessageHandlers(bot: Bot): void {
     if (text.startsWith("/")) return;
 
     const telegramId = String(ctx.from!.id);
+
+    if (isMainMenuButton(text) || isConfirmButton(text)) {
+      const handled = await handleMenuButton(ctx, text);
+      if (handled) return;
+    }
+
     const upper = text.toUpperCase();
     const session = await getSessionState(telegramId);
 
@@ -232,7 +244,7 @@ export function registerMessageHandlers(bot: Bot): void {
         if (session.mode === "awaiting_cv") {
           await ctx.reply(
             joinBlocks(bold("Dibatalkan"), "Upload CV dibatalkan."),
-            replyHtml,
+            withMainMenu(replyHtml),
           );
           return;
         }
@@ -242,14 +254,14 @@ export function registerMessageHandlers(bot: Bot): void {
               bold("Dibatalkan"),
               "Pelengkapan data lowongan dibatalkan. Lowongan tetap tersimpan.",
             ),
-            replyHtml,
+            withMainMenu(replyHtml),
           );
           return;
         }
         if (session.mode === "awaiting_followup") {
           await ctx.reply(
             joinBlocks(bold("Dibatalkan"), "Follow-up dibatalkan."),
-            replyHtml,
+            withMainMenu(replyHtml),
           );
           return;
         }
@@ -259,7 +271,7 @@ export function registerMessageHandlers(bot: Bot): void {
         cancelled
           ? joinBlocks(bold("Dibatalkan"), "Draft dibatalkan.")
           : joinBlocks(bold("Info"), "Tidak ada yang dibatalkan."),
-        replyHtml,
+        withMainMenu(replyHtml),
       );
       return;
     }
@@ -274,12 +286,12 @@ export function registerMessageHandlers(bot: Bot): void {
             `Kepada: ${code(result.to)}`,
             `Message ID: ${code(result.messageId)}`,
           ),
-          replyHtml,
+          withMainMenu(replyHtml),
         );
       } else {
         await ctx.reply(
           joinBlocks(bold("Gagal kirim"), result.reason),
-          replyHtml,
+          withMainMenu(replyHtml),
         );
       }
       return;

@@ -4,6 +4,7 @@ import {
   formatDraftPreview,
 } from "../../services/applicationFlow.js";
 import { bold, code, joinBlocks, replyHtml } from "../format.js";
+import { withDraftConfirmMenu, withMainMenu } from "../keyboard.js";
 
 export function registerDraftCommand(bot: Bot): void {
   bot.command("draft", async (ctx) => {
@@ -20,7 +21,7 @@ export function registerDraftCommand(bot: Bot): void {
             code("/draft 3"),
             "Nomor = ID lowongan dari /jobs",
           ),
-          replyHtml,
+          withMainMenu(replyHtml),
         );
         return;
       }
@@ -41,15 +42,18 @@ export function registerDraftCommand(bot: Bot): void {
       const app = await createDraftApplication(String(ctx.from!.id), jobId);
       const preview = formatDraftPreview(app);
       if (preview.length > 4000) {
-        await ctx.reply(preview.slice(0, 4000) + "\n…", replyHtml);
+        await ctx.reply(
+          preview.slice(0, 4000) + "\n…",
+          withDraftConfirmMenu(replyHtml),
+        );
       } else {
-        await ctx.reply(preview, replyHtml);
+        await ctx.reply(preview, withDraftConfirmMenu(replyHtml));
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       await ctx.reply(
         joinBlocks(bold("Gagal membuat draft"), msg),
-        replyHtml,
+        withMainMenu(replyHtml),
       );
     }
   });
