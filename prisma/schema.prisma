@@ -16,6 +16,7 @@ model UserSettings {
   defaultCvOriginalName String?
   applicantFullName     String?
   cvProfileJson         String?
+  emailLanguage         String   @default("auto")
   awaitingCv            Boolean  @default(false)
   sessionMode           String   @default("idle")
   sessionJson           String?

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { chatJson, type ImageInput } from "./client.js";
+import { resolvePostingLanguage } from "../utils/language.js";
 
 const extractedJobSchema = z.object({
   rawText: z.string().optional(),
@@ -12,10 +13,12 @@ const extractedJobSchema = z.object({
     .transform((v) => (v === "" ? null : v)),
   emailSubject: z.string().nullable().optional().catch(null),
   keyRequirements: z.array(z.string()).default([]),
-  language: z.enum(["id", "en"]).default("id"),
+  language: z.enum(["id", "en"]).optional(),
 });
 
-export type ExtractedJob = z.infer<typeof extractedJobSchema>;
+export type ExtractedJob = z.infer<typeof extractedJobSchema> & {
+  language: "id" | "en";
+};
 
 const SYSTEM = `You extract structured fields from a job posting.
 Return ONLY valid JSON with keys:
@@ -25,13 +28,22 @@ Return ONLY valid JSON with keys:
 - recruiterEmail: string | null (valid email if present in the posting, else null)
 - emailSubject: string | null (ONLY if the posting explicitly suggests an email subject / subject line to use when applying; else null — do not invent)
 - keyRequirements: string[] (3-8 concise bullets of must-have requirements)
-- language: "id" or "en" (primary language of the posting)
+- language: "id" or "en" — primary language of the posting body (English posting => "en", Indonesian => "id"). Do not guess "id" for English text.
 
 Be precise. Do not invent an email or subject if none is present. Do not overclaim skills.`;
 
-function parseExtracted(content: string): ExtractedJob {
+function finalizeExtracted(
+  extracted: z.infer<typeof extractedJobSchema>,
+  fallbackText: string,
+): ExtractedJob {
+  const rawText = (extracted.rawText?.trim() || fallbackText).trim();
+  const language = resolvePostingLanguage(rawText, extracted.language ?? null);
+  return { ...extracted, rawText, language };
+}
+
+function parseExtracted(content: string, fallbackText: string): ExtractedJob {
   const parsed = JSON.parse(content) as unknown;
-  return extractedJobSchema.parse(parsed);
+  return finalizeExtracted(extractedJobSchema.parse(parsed), fallbackText);
 }
 
 export async function extractJob(rawText: string): Promise<ExtractedJob> {
@@ -41,11 +53,7 @@ export async function extractJob(rawText: string): Promise<ExtractedJob> {
     SYSTEM,
     `Job posting text:\n\n${truncated}`,
   );
-  const extracted = parseExtracted(content);
-  if (!extracted.rawText) {
-    return { ...extracted, rawText: truncated };
-  }
-  return extracted;
+  return parseExtracted(content, truncated);
 }
 
 export async function extractJobFromImage(
@@ -56,7 +64,7 @@ export async function extractJobFromImage(
     "This image is a job posting (screenshot/photo). Transcribe the posting into rawText and extract the structured fields.",
     image,
   );
-  const extracted = parseExtracted(content);
+  const extracted = parseExtracted(content, "");
   if (!extracted.rawText || extracted.rawText.trim().length < 20) {
     throw new Error(
       "Tidak bisa membaca lowongan dari foto. Coba foto lebih jelas, atau kirim teks/PDF.",

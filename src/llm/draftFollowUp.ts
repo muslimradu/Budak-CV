@@ -41,7 +41,10 @@ Return ONLY valid JSON with keys (each value = ONE continuous paragraph as a SIN
 
 Rules:
 - Keep multi-word titles intact (e.g. "QA Engineer")
-- Match language (id/en) from input
+- LANGUAGE is critical: input.language is authoritative
+  - "en" => entire email in English; signOff "Best regards,"
+  - "id" => entire email in Indonesian; signOff "Hormat saya,"
+  - Do NOT mix languages. Do NOT default to Indonesian when language is "en".
 - Formal, concise, no fluff, no overclaiming
 - Never invent interview dates or promises not in the context
 - No markdown, no Subject in body`;
@@ -54,15 +57,28 @@ export async function draftFollowUpEmail(input: {
   followUpContext: string;
   cv: CvProfile;
 }): Promise<{ subject: string; body: string }> {
-  const fullName = (input.cv.fullName ?? "").trim() || "Pelamar";
-  const pos = input.position ?? "posisi yang dilamar";
-  const company = input.company ? ` di ${input.company}` : "";
+  const fullName =
+    (input.cv.fullName ?? "").trim() ||
+    (input.language === "en" ? "Applicant" : "Pelamar");
+  const pos =
+    input.position ??
+    (input.language === "en" ? "the applied position" : "posisi yang dilamar");
+  const company =
+    input.company
+      ? input.language === "en"
+        ? ` at ${input.company}`
+        : ` di ${input.company}`
+      : "";
 
   const content = await chatJson(
     SYSTEM,
     JSON.stringify(
       {
         language: input.language,
+        languageInstruction:
+          input.language === "en"
+            ? "Write the entire follow-up in English."
+            : "Tulis seluruh follow-up dalam Bahasa Indonesia.",
         position: input.position,
         company: input.company,
         previousSubject: input.previousSubject,

@@ -20,6 +20,7 @@ export function registerStartCommand(bot: Bot): void {
         `${code("/delete")} / ${code("/delete 3")} / ${code("/delete all")}`,
         `${code("/status")} — riwayat lamaran`,
         `${code("/followup")} — draft follow-up`,
+        `${code("/lang")} — bahasa email (auto / en / id)`,
         `${code("/send email@x.com")} — kirim ke email tertentu`,
         `${code("BATAL")} — batalkan mode / draft`,
       ].join("\n"),

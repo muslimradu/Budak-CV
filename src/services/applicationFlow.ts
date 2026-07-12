@@ -7,12 +7,28 @@ import { env } from "../config.js";
 import { getCvContext, getDefaultCvBuffer } from "./cvStorage.js";
 import { canSendEmail } from "./dailyLimit.js";
 import {
+  resolveEmailLanguage,
+  type EmailLanguagePref,
+} from "../utils/language.js";
+import {
   bold,
   code,
   divider,
   escapeHtml,
   joinBlocks,
 } from "../bot/format.js";
+
+async function getEmailLanguagePref(
+  telegramId: string,
+): Promise<EmailLanguagePref> {
+  const settings = await prisma.userSettings.findUnique({
+    where: { telegramId },
+    select: { emailLanguage: true },
+  });
+  const pref = settings?.emailLanguage;
+  if (pref === "id" || pref === "en" || pref === "auto") return pref;
+  return "auto";
+}
 
 async function audit(
   action: string,
@@ -37,6 +53,7 @@ export async function createDraftApplication(
   jobId?: number,
 ) {
   const cv = await getCvContext(telegramId);
+  const emailLangPref = await getEmailLanguagePref(telegramId);
 
   const job = jobId
     ? await prisma.jobPosting.findFirst({
@@ -62,13 +79,15 @@ export async function createDraftApplication(
     requirements = [];
   }
 
+  const language = resolveEmailLanguage(emailLangPref, job.language);
+
   const extracted: ExtractedJob = {
     position: job.position,
     company: job.company,
     recruiterEmail: job.recruiterEmail,
     emailSubject: job.emailSubject,
     keyRequirements: requirements,
-    language: job.language === "en" ? "en" : "id",
+    language,
   };
 
   const draft = await draftEmail({
@@ -76,6 +95,7 @@ export async function createDraftApplication(
     rawTextSnippet: job.rawText,
     cv: cv.profile,
     emailSubjectFromJob: job.emailSubject,
+    language,
   });
 
   await cancelPendingApplications();
@@ -102,6 +122,7 @@ export async function createFollowUpDraft(
   followUpContext: string,
 ) {
   const cv = await getCvContext(telegramId);
+  const emailLangPref = await getEmailLanguagePref(telegramId);
   const previous = await prisma.application.findUnique({
     where: { id: fromApplicationId },
     include: { job: true },
@@ -110,8 +131,10 @@ export async function createFollowUpDraft(
     throw new Error(`Lamaran #${fromApplicationId} tidak ditemukan.`);
   }
 
+  const language = resolveEmailLanguage(emailLangPref, previous.job.language);
+
   const draft = await draftFollowUpEmail({
-    language: previous.job.language === "en" ? "en" : "id",
+    language,
     position: previous.job.position,
     company: previous.job.company,
     previousSubject: previous.subject,

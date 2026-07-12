@@ -8,6 +8,7 @@ import { registerStatusCommand } from "./commands/status.js";
 import { registerJobsCommand } from "./commands/jobs.js";
 import { registerDeleteCommand } from "./commands/delete.js";
 import { registerFollowUpCommand } from "./commands/followup.js";
+import { registerLangCommand } from "./commands/lang.js";
 import { registerMessageHandlers } from "./handlers/messages.js";
 import { bold, joinBlocks, replyHtml } from "./format.js";
 
@@ -16,6 +17,7 @@ const COMMAND_MENU = [
   { command: "cv", description: "Upload PDF CV default" },
   { command: "draft", description: "Draft email (/draft atau /draft 3)" },
   { command: "followup", description: "Draft follow-up lamaran" },
+  { command: "lang", description: "Bahasa email: auto / en / id" },
   { command: "send", description: "Kirim ke email@domain.com" },
   { command: "jobs", description: "Lihat lowongan aktif" },
   { command: "delete", description: "Hapus lowongan (/delete 3)" },
@@ -48,6 +50,7 @@ export function createBot(): Bot {
   registerCvCommand(bot);
   registerDraftCommand(bot);
   registerFollowUpCommand(bot);
+  registerLangCommand(bot);
   registerSendCommand(bot);
   registerStatusCommand(bot);
   registerJobsCommand(bot);
