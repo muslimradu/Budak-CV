@@ -18,7 +18,6 @@ import {
   cancelPending,
   confirmAndSend,
   createFollowUpDraft,
-  formatDraftPreview,
   getApplicationForPreview,
 } from "../../services/applicationFlow.js";
 import {
@@ -28,7 +27,10 @@ import {
   parseJobFieldReply,
 } from "../../services/jobComplete.js";
 import { bold, code, escapeHtml, joinBlocks, replyHtml } from "../format.js";
-import { withDraftInline, withMainMenu } from "../keyboard.js";
+import {
+  deleteDraftPreviewMessage,
+  sendDraftPreview,
+} from "../draftPreview.js";
 import {
   applyRevisiUpdates,
   REVISI_FIELD_LABELS,
@@ -70,9 +72,9 @@ async function saveCvFromBuffer(
         `Nama: ${saved.profile.fullName ?? "—"}`,
         `Lampiran: ${code(saved.attachmentFilename)}`,
       ].join("\n"),
-      `Lanjut kirim lowongan, lalu pilih Draft dari /start atau ${code("/draft")}.`,
+      `Lanjut kirim lowongan, lalu pilih Buat Email dari /start atau ${code("/draft")}.`,
     ),
-    withMainMenu(replyHtml),
+    replyHtml,
   );
 }
 
@@ -101,7 +103,7 @@ async function replyAfterJobIngest(
     await ctx.reply(formatMissingFieldsPrompt(job.id, missing), replyHtml);
     return;
   }
-  await ctx.reply(formatJobSummary(job), withMainMenu(replyHtml));
+  await ctx.reply(formatJobSummary(job), replyHtml);
 }
 
 export function registerMessageHandlers(bot: Bot): void {
@@ -244,7 +246,7 @@ export function registerMessageHandlers(bot: Bot): void {
         if (session.mode === "awaiting_cv") {
           await ctx.reply(
             joinBlocks(bold("Oke, dibatalin"), "Upload CV-nya aku batalkan."),
-            withMainMenu(replyHtml),
+            replyHtml,
           );
           return;
         }
@@ -254,31 +256,32 @@ export function registerMessageHandlers(bot: Bot): void {
               bold("Oke, dibatalin"),
               "Pelengkapan data dihentikan. Lowongannya tetap tersimpan.",
             ),
-            withMainMenu(replyHtml),
+            replyHtml,
           );
           return;
         }
         if (session.mode === "awaiting_followup") {
           await ctx.reply(
             joinBlocks(bold("Oke, dibatalin"), "Follow-up-nya aku batalkan."),
-            withMainMenu(replyHtml),
+            replyHtml,
           );
           return;
         }
         if (session.mode === "awaiting_revisi_value") {
           await ctx.reply(
             joinBlocks(bold("Oke, dibatalin"), "Revisi-nya aku batalkan."),
-            withMainMenu(replyHtml),
+            replyHtml,
           );
           return;
         }
       }
+      await deleteDraftPreviewMessage(ctx, telegramId);
       const cancelled = await cancelPending();
       await ctx.reply(
         cancelled
-          ? joinBlocks(bold("Oke, dibatalin"), "Draft kamu sudah aku buang.")
+          ? joinBlocks(bold("Oke, dibatalin"), "Email kamu sudah aku buang.")
           : joinBlocks(bold("Hmm"), "Nggak ada yang perlu dibatalin."),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return;
     }
@@ -296,12 +299,12 @@ export function registerMessageHandlers(bot: Bot): void {
             `Ke: ${code(result.to)}`,
             `ID: ${code(result.messageId)}`,
           ),
-          withMainMenu(replyHtml),
+          replyHtml,
         );
       } else {
         await ctx.reply(
           joinBlocks(bold("Gagal kirim"), result.reason),
-          withMainMenu(replyHtml),
+          replyHtml,
         );
       }
       return;
@@ -324,8 +327,8 @@ export function registerMessageHandlers(bot: Bot): void {
       if (!field || !applicationId) {
         await clearSession(telegramId);
         await ctx.reply(
-          joinBlocks(bold("Sesi habis"), "Buka Revisi lagi dari draft ya."),
-          withMainMenu(replyHtml),
+          joinBlocks(bold("Sesi habis"), "Buka Revisi lagi dari email ya."),
+          replyHtml,
         );
         return;
       }
@@ -339,7 +342,7 @@ export function registerMessageHandlers(bot: Bot): void {
       ].includes(field);
       if (needsWait) {
         await ctx.reply(
-          joinBlocks(bold("Sebentar…"), "Aku update draft kamu."),
+          joinBlocks(bold("Sebentar…"), "Aku update email kamu."),
           replyHtml,
         );
       }
@@ -356,24 +359,17 @@ export function registerMessageHandlers(bot: Bot): void {
           joinBlocks(
             bold("Sudah diubah"),
             `Yang berubah: ${escapeHtml(labels)}`,
-            "Cek lagi draft-nya di bawah ya:",
+            "Cek lagi email-nya di bawah ya:",
           ),
           replyHtml,
         );
         const app = await getApplicationForPreview(id);
         if (app) {
-          const preview = formatDraftPreview(app);
-          await ctx.reply(
-            preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
-            withDraftInline(replyHtml),
-          );
+          await sendDraftPreview(ctx, telegramId, app);
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        await ctx.reply(
-          joinBlocks(bold("Revisi gagal"), msg),
-          withMainMenu(replyHtml),
-        );
+        await ctx.reply(joinBlocks(bold("Revisi gagal"), msg), replyHtml);
       }
       return;
     }
@@ -456,17 +452,13 @@ export function registerMessageHandlers(bot: Bot): void {
       }
 
       await ctx.reply(
-        joinBlocks(bold("Sebentar…"), "Aku susun draft follow-up kamu."),
+        joinBlocks(bold("Sebentar…"), "Aku susun follow-up kamu."),
         replyHtml,
       );
       try {
         const app = await createFollowUpDraft(telegramId, appId, text);
         await clearSession(telegramId);
-        const preview = formatDraftPreview(app);
-        await ctx.reply(
-          preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
-          withDraftInline(replyHtml),
-        );
+        await sendDraftPreview(ctx, telegramId, app);
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         await ctx.reply(joinBlocks(bold("Gagal"), msg), replyHtml);

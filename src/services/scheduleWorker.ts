@@ -18,7 +18,7 @@ export function startScheduleWorker(bot: Bot): NodeJS.Timeout {
               env.TELEGRAM_USER_ID,
               joinBlocks(
                 bold("Jadwal terkirim"),
-                `Draft ${code(`#${applicationId}`)} sudah aku kirim.`,
+                `Email ${code(`#${applicationId}`)} sudah aku kirim.`,
                 `Ke: ${code(result.to)}`,
                 `ID: ${code(result.messageId)}`,
               ),
@@ -29,7 +29,7 @@ export function startScheduleWorker(bot: Bot): NodeJS.Timeout {
               env.TELEGRAM_USER_ID,
               joinBlocks(
                 bold("Jadwal gagal kirim"),
-                `Draft ${code(`#${applicationId}`)} gagal aku kirim.`,
+                `Email ${code(`#${applicationId}`)} gagal aku kirim.`,
                 result.reason,
               ),
               replyHtml,

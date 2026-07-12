@@ -5,15 +5,12 @@ import {
   requirePendingForRevisi,
   REVISI_FIELD_LABELS,
 } from "../../services/revisi.js";
-import {
-  formatDraftPreview,
-  getApplicationForPreview,
-} from "../../services/applicationFlow.js";
+import { getApplicationForPreview } from "../../services/applicationFlow.js";
 import { bold, code, escapeHtml, joinBlocks, replyHtml } from "../format.js";
-import { withDraftInline, withMainMenu } from "../keyboard.js";
+import { sendDraftPreview } from "../draftPreview.js";
 
 const HELP = joinBlocks(
-  bold("Revisi draft"),
+  bold("Revisi email"),
   "Langsung tulis yang mau diubah, bisa sekaligus:",
   [
     code("/revisi sapaan: Mbak"),
@@ -29,7 +26,7 @@ export function registerRevisiCommand(bot: Bot): void {
     const arg = (ctx.match ?? "").toString().trim();
 
     if (!arg) {
-      await ctx.reply(HELP, withMainMenu(replyHtml));
+      await ctx.reply(HELP, replyHtml);
       return;
     }
 
@@ -40,7 +37,7 @@ export function registerRevisiCommand(bot: Bot): void {
           bold("Formatnya belum pas"),
           `Coba kayak gini: ${code("/revisi sapaan: Mbak")}`,
         ),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return;
     }
@@ -49,10 +46,10 @@ export function registerRevisiCommand(bot: Bot): void {
     if (!pending) {
       await ctx.reply(
         joinBlocks(
-          bold("Belum ada draft"),
-          "Buat draft dulu ya, baru kita revisi.",
+          bold("Belum ada email"),
+          "Buat email dulu ya, baru kita revisi.",
         ),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return;
     }
@@ -62,7 +59,7 @@ export function registerRevisiCommand(bot: Bot): void {
     );
     if (needsWait) {
       await ctx.reply(
-        joinBlocks(bold("Sebentar…"), "Aku update draft kamu."),
+        joinBlocks(bold("Sebentar…"), "Aku update email kamu."),
         replyHtml,
       );
     }
@@ -76,7 +73,7 @@ export function registerRevisiCommand(bot: Bot): void {
       const app = await getApplicationForPreview(applicationId);
       if (!app) {
         await ctx.reply(
-          joinBlocks(bold("Ups"), "Draft-nya hilang setelah direvisi."),
+          joinBlocks(bold("Ups"), "Email-nya hilang setelah direvisi."),
           replyHtml,
         );
         return;
@@ -90,21 +87,14 @@ export function registerRevisiCommand(bot: Bot): void {
         joinBlocks(
           bold("Sudah diubah"),
           `Yang berubah: ${escapeHtml(changedLabels)}`,
-          "Cek lagi draft-nya di bawah ya:",
+          "Cek lagi email-nya di bawah ya:",
         ),
         replyHtml,
       );
-      const preview = formatDraftPreview(app);
-      await ctx.reply(
-        preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
-        withDraftInline(replyHtml),
-      );
+      await sendDraftPreview(ctx, telegramId, app);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      await ctx.reply(
-        joinBlocks(bold("Revisi gagal"), msg),
-        withMainMenu(replyHtml),
-      );
+      await ctx.reply(joinBlocks(bold("Revisi gagal"), msg), replyHtml);
     }
   });
 }

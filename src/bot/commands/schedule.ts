@@ -80,7 +80,7 @@ export function registerScheduleCommand(bot: Bot): void {
         joinBlocks(
           bold(count > 0 ? "Oke, dibatalin" : "Nggak ketemu"),
           count > 0
-            ? `Draft ${code(`#${id}`)} sudah aku batalin.`
+            ? `Email ${code(`#${id}`)} sudah aku batalin.`
             : `Nggak ada jadwal #${id}.`,
         ),
         replyHtml,
@@ -109,7 +109,7 @@ export function registerScheduleCommand(bot: Bot): void {
     await ctx.reply(
       joinBlocks(
         bold("Siap, sudah dijadwal"),
-        `Draft ${code(`#${result.applicationId}`)}`,
+        `Email ${code(`#${result.applicationId}`)}`,
         `Ke: ${code(result.to)}`,
         `Waktu: ${formatWib(result.at)}`,
         `Batalin: ${code(`/schedule batal ${result.applicationId}`)}`,

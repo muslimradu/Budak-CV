@@ -1,10 +1,7 @@
 import type { Bot } from "grammy";
-import {
-  createDraftApplication,
-  formatDraftPreview,
-} from "../../services/applicationFlow.js";
+import { createDraftApplication } from "../../services/applicationFlow.js";
 import { bold, code, joinBlocks, replyHtml } from "../format.js";
-import { withDraftInline, withMainMenu } from "../keyboard.js";
+import { sendDraftPreview } from "../draftPreview.js";
 
 export function registerDraftCommand(bot: Bot): void {
   bot.command("draft", async (ctx) => {
@@ -21,7 +18,7 @@ export function registerDraftCommand(bot: Bot): void {
             code("/draft 3"),
             "Angka = ID lowongan dari daftar kamu.",
           ),
-          withMainMenu(replyHtml),
+          replyHtml,
         );
         return;
       }
@@ -40,21 +37,10 @@ export function registerDraftCommand(bot: Bot): void {
 
     try {
       const app = await createDraftApplication(String(ctx.from!.id), jobId);
-      const preview = formatDraftPreview(app);
-      if (preview.length > 4000) {
-        await ctx.reply(
-          preview.slice(0, 4000) + "\n…",
-          withDraftInline(replyHtml),
-        );
-      } else {
-        await ctx.reply(preview, withDraftInline(replyHtml));
-      }
+      await sendDraftPreview(ctx, String(ctx.from!.id), app);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      await ctx.reply(
-        joinBlocks(bold("Draft gagal"), msg),
-        withMainMenu(replyHtml),
-      );
+      await ctx.reply(joinBlocks(bold("Gagal buat email"), msg), replyHtml);
     }
   });
 }

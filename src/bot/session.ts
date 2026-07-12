@@ -25,6 +25,8 @@ export type SessionPayload = {
   followUpFromApplicationId?: number;
   applicationId?: number;
   revisiField?: RevisiField;
+  /** message_id preview email di chat, untuk dihapus saat batal. */
+  draftMessageId?: number;
 };
 
 export type SessionState = {

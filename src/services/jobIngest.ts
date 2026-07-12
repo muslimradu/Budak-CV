@@ -121,6 +121,6 @@ export function formatJobSummary(job: {
       `Bahasa: ${escapeHtml(job.language)}`,
     ].join("\n"),
     [bold("Requirement"), reqLines].join("\n"),
-    `Lanjut? ${code("/draft")}`,
+    `Lanjut? ${code("/draft")} atau pilih Buat Email di /start`,
   );
 }

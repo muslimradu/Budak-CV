@@ -2,7 +2,6 @@ import type { Context } from "grammy";
 import {
   cancelPending,
   createDraftApplication,
-  formatDraftPreview,
   getLastSentApplication,
   getPendingApplication,
   listActiveJobs,
@@ -20,33 +19,22 @@ import {
   joinBlocks,
   replyHtml,
 } from "../format.js";
-import {
-  MenuBtn,
-  revisiFieldsInline,
-  withDraftInline,
-  withMainMenu,
-} from "../keyboard.js";
+import { MenuBtn, revisiFieldsInline } from "../keyboard.js";
 import { setSession } from "../session.js";
-
-async function replyDraftPreview(
-  ctx: { reply: (text: string, extra?: object) => Promise<unknown> },
-  app: Parameters<typeof formatDraftPreview>[0],
-): Promise<void> {
-  const preview = formatDraftPreview(app);
-  const text =
-    preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview;
-  await ctx.reply(text, withDraftInline(replyHtml));
-}
+import {
+  deleteDraftPreviewMessage,
+  sendDraftPreview,
+} from "../draftPreview.js";
 
 export async function showRevisiPicker(ctx: Context): Promise<void> {
   const pending = await getPendingApplication();
   if (!pending) {
     await ctx.reply(
       joinBlocks(
-        bold("Belum ada draft"),
-        "Buat draft dulu ya, biar ada yang bisa direvisi.",
+        bold("Belum ada email"),
+        "Buat email dulu ya, biar ada yang bisa direvisi.",
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return;
   }
@@ -68,13 +56,14 @@ export async function handleMenuButton(
   const telegramId = String(ctx.from!.id);
 
   if (text === MenuBtn.cancel) {
+    await deleteDraftPreviewMessage(ctx, telegramId);
     await setSession(telegramId, "idle");
     const cancelled = await cancelPending();
     await ctx.reply(
       cancelled
-        ? joinBlocks(bold("Oke, dibatalin"), "Draft kamu sudah aku buang.")
-        : joinBlocks(bold("Hmm"), "Nggak ada draft yang perlu dibatalin."),
-      withMainMenu(replyHtml),
+        ? joinBlocks(bold("Oke, dibatalin"), "Email kamu sudah aku buang.")
+        : joinBlocks(bold("Hmm"), "Nggak ada email yang perlu dibatalin."),
+      replyHtml,
     );
     return true;
   }
@@ -84,16 +73,16 @@ export async function handleMenuButton(
     await ctx.reply(
       joinBlocks(
         bold("Bantuan singkat"),
-        "Pakai tombol di bawah, atau ketik perintah ini:",
+        "Pakai menu di /start, atau ketik perintah ini:",
         [
           `${code("/cv")} — upload CV`,
           `${code("/draft")} — buat email`,
-          `${code("/revisi sapaan: Mbak")} — ubah draft`,
+          `${code("/revisi sapaan: Mbak")} — ubah email`,
           `${code("/schedule 18:00")} — jadwalkan`,
           `${code("YA")} — kirim sekarang`,
         ].join("\n"),
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -106,7 +95,7 @@ export async function handleMenuButton(
         "Kirim PDF CV kamu sekarang ya.",
         `Batal? Ketik ${code("BATAL")}.`,
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -114,18 +103,18 @@ export async function handleMenuButton(
   if (text === MenuBtn.draft) {
     await setSession(telegramId, "idle");
     await ctx.reply(
-      joinBlocks(bold("Sebentar…"), "Aku lagi susun email buat lowongan terbaru kamu."),
+      joinBlocks(
+        bold("Sebentar…"),
+        "Aku lagi susun email buat lowongan terbaru kamu.",
+      ),
       replyHtml,
     );
     try {
       const app = await createDraftApplication(telegramId);
-      await replyDraftPreview(ctx, app);
+      await sendDraftPreview(ctx, telegramId, app);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      await ctx.reply(
-        joinBlocks(bold("Draft gagal"), msg),
-        withMainMenu(replyHtml),
-      );
+      await ctx.reply(joinBlocks(bold("Gagal buat email"), msg), replyHtml);
     }
     return true;
   }
@@ -157,7 +146,7 @@ export async function handleMenuButton(
           code("/schedule batal"),
         ].join("\n"),
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -171,7 +160,7 @@ export async function handleMenuButton(
           bold("Belum ada lowongan"),
           "Kirim aja teks, PDF, atau foto lowongannya ke aku.",
         ),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return true;
     }
@@ -187,9 +176,9 @@ export async function handleMenuButton(
         bold("Lowongan kamu"),
         divider(),
         ...blocks,
-        `Mau draft? Pilih ${MenuBtn.draft} atau ${code("/draft <id>")}.`,
+        `Mau buat email? Pilih ${MenuBtn.draft} di /start atau ${code("/draft <id>")}.`,
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -198,10 +187,10 @@ export async function handleMenuButton(
     await ctx.reply(
       joinBlocks(
         bold("Kirim email"),
-        "Kalau draft sudah oke, tekan ✅ Ya, kirim di bawah preview — atau ketik YA.",
+        "Kalau email sudah oke, tekan ✅ Ya, kirim di bawah preview — atau ketik YA.",
         `Mau ganti tujuan? ${code("/send email@domain.com")}`,
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -214,7 +203,7 @@ export async function handleMenuButton(
           bold("Belum bisa follow-up"),
           "Kirim lamaran dulu ya, baru kita follow-upin.",
         ),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return true;
     }
@@ -228,7 +217,7 @@ export async function handleMenuButton(
         "Tulis aja konteks follow-upnya ke aku.",
         `Batal? Ketik ${code("BATAL")}.`,
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -245,7 +234,7 @@ export async function handleMenuButton(
         `Sekarang: ${code(formatLanguageLabel(current))}`,
         [code("/lang auto"), code("/lang en"), code("/lang id")].join("\n"),
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -256,7 +245,7 @@ export async function handleMenuButton(
     if (apps.length === 0) {
       await ctx.reply(
         joinBlocks(bold("Belum ada riwayat"), "Lamaran kamu masih kosong."),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return true;
     }
@@ -271,7 +260,7 @@ export async function handleMenuButton(
     });
     await ctx.reply(
       joinBlocks(bold("Lamaran terakhir kamu"), divider(), ...blocks),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }
@@ -283,7 +272,7 @@ export async function handleMenuButton(
         "Pilih salah satu:",
         [code("/delete"), code("/delete 3"), code("/delete all")].join("\n"),
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return true;
   }

@@ -3,7 +3,7 @@ import { InlineKeyboard } from "grammy";
 /** Label tombol menu utama (inline di bawah pesan). */
 export const MenuBtn = {
   cv: "📄 CV",
-  draft: "✉️ Draft",
+  draft: "✉️ Buat Email",
   revisi: "✏️ Revisi",
   schedule: "📅 Jadwal",
   jobs: "📋 Lowongan",
@@ -88,7 +88,7 @@ export function mainMenuInline(): InlineKeyboard {
 export function draftActionsInline(): InlineKeyboard {
   return new InlineKeyboard()
     .text("✅ Ya, kirim", Cb.send)
-    .text("❎ Batal draft", Cb.cancel)
+    .text("❎ Batal", Cb.cancel)
     .row()
     .text("✏️ Revisi", Cb.revisi)
     .text("📅 Jadwal", Cb.schedule);

@@ -8,7 +8,6 @@ import {
 import {
   cancelPending,
   confirmAndSend,
-  formatDraftPreview,
   getApplicationForPreview,
   getPendingApplication,
   listScheduledApplications,
@@ -26,9 +25,12 @@ import {
   labelForMenuCallback,
   sapaanInline,
   withDraftInline,
-  withMainMenu,
 } from "../keyboard.js";
 import { clearSession, setSession } from "../session.js";
+import {
+  deleteDraftPreviewMessage,
+  sendDraftPreview,
+} from "../draftPreview.js";
 import { handleMenuButton, showRevisiPicker } from "./menu.js";
 
 const REVISI_FIELDS = new Set<string>([
@@ -43,21 +45,18 @@ const REVISI_FIELDS = new Set<string>([
 
 async function replyPreview(
   ctx: Context,
+  telegramId: string,
   applicationId: number,
 ): Promise<void> {
   const app = await getApplicationForPreview(applicationId);
   if (!app) {
     await ctx.reply(
-      joinBlocks(bold("Ups"), "Draft-nya nggak ketemu."),
-      withMainMenu(replyHtml),
+      joinBlocks(bold("Ups"), "Email-nya nggak ketemu."),
+      replyHtml,
     );
     return;
   }
-  const preview = formatDraftPreview(app);
-  await ctx.reply(
-    preview.length > 4000 ? preview.slice(0, 4000) + "\n…" : preview,
-    withDraftInline(replyHtml),
-  );
+  await sendDraftPreview(ctx, telegramId, app);
 }
 
 async function applyFieldUpdate(
@@ -70,10 +69,10 @@ async function applyFieldUpdate(
   if (!pending) {
     await ctx.reply(
       joinBlocks(
-        bold("Belum ada draft"),
-        "Buat draft dulu ya, baru kita revisi.",
+        bold("Belum ada email"),
+        "Buat email dulu ya, baru kita revisi.",
       ),
-      withMainMenu(replyHtml),
+      replyHtml,
     );
     return;
   }
@@ -83,7 +82,7 @@ async function applyFieldUpdate(
   );
   if (needsWait) {
     await ctx.reply(
-      joinBlocks(bold("Sebentar…"), "Aku update draft kamu."),
+      joinBlocks(bold("Sebentar…"), "Aku update email kamu."),
       replyHtml,
     );
   }
@@ -100,17 +99,14 @@ async function applyFieldUpdate(
       joinBlocks(
         bold("Sudah diubah"),
         `Yang berubah: ${escapeHtml(labels)}`,
-        "Cek lagi draft-nya di bawah ya:",
+        "Cek lagi email-nya di bawah ya:",
       ),
       replyHtml,
     );
-    await replyPreview(ctx, applicationId);
+    await replyPreview(ctx, telegramId, applicationId);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    await ctx.reply(
-      joinBlocks(bold("Revisi gagal"), msg),
-      withMainMenu(replyHtml),
-    );
+    await ctx.reply(joinBlocks(bold("Revisi gagal"), msg), replyHtml);
   }
 }
 
@@ -140,7 +136,7 @@ export function registerCallbackHandlers(bot: Bot): void {
             `Ke: ${code(result.to)}`,
             `ID: ${code(result.messageId)}`,
           ),
-          withMainMenu(replyHtml),
+          replyHtml,
         );
       } else {
         await ctx.reply(
@@ -152,13 +148,14 @@ export function registerCallbackHandlers(bot: Bot): void {
     }
 
     if (data === Cb.cancel) {
+      await deleteDraftPreviewMessage(ctx, telegramId);
       await clearSession(telegramId);
       const cancelled = await cancelPending();
       await ctx.reply(
         cancelled
-          ? joinBlocks(bold("Oke, dibatalin"), "Draft kamu sudah aku buang.")
-          : joinBlocks(bold("Hmm"), "Nggak ada draft yang perlu dibatalin."),
-        withMainMenu(replyHtml),
+          ? joinBlocks(bold("Oke, dibatalin"), "Email kamu sudah aku buang.")
+          : joinBlocks(bold("Hmm"), "Nggak ada email yang perlu dibatalin."),
+        replyHtml,
       );
       return;
     }
@@ -185,7 +182,7 @@ export function registerCallbackHandlers(bot: Bot): void {
             code("/schedule batal"),
           ].join("\n"),
         ),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return;
     }
@@ -213,10 +210,10 @@ export function registerCallbackHandlers(bot: Bot): void {
       if (!pending) {
         await ctx.reply(
           joinBlocks(
-            bold("Belum ada draft"),
-            "Buat draft dulu ya, baru kita revisi.",
+            bold("Belum ada email"),
+            "Buat email dulu ya, baru kita revisi.",
           ),
-          withMainMenu(replyHtml),
+          replyHtml,
         );
         return;
       }
@@ -231,7 +228,7 @@ export function registerCallbackHandlers(bot: Bot): void {
           "Kirim nilai barunya sekarang ya.",
           `Batal? Ketik ${code("BATAL")}.`,
         ),
-        withMainMenu(replyHtml),
+        replyHtml,
       );
       return;
     }

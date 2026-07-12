@@ -57,8 +57,8 @@ export function registerLangCommand(bot: Bot): void {
         bold("Oke, sudah diubah"),
         formatLanguageLabel(arg),
         arg === "auto"
-          ? "Draft berikutnya ikut bahasa lowongan."
-          : `Draft berikutnya aku paksa ${arg === "en" ? "English" : "Indonesia"}.`,
+          ? "Email berikutnya ikut bahasa lowongan."
+          : `Email berikutnya aku paksa ${arg === "en" ? "English" : "Indonesia"}.`,
       ),
       replyHtml,
     );

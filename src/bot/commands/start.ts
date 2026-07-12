@@ -12,7 +12,7 @@ export function registerStartCommand(bot: Bot): void {
         bold("Caranya gampang"),
         `1. Upload CV kamu`,
         `2. Kirim lowongan (teks / PDF / foto)`,
-        `3. Minta aku buatkan draft`,
+        `3. Minta aku buatkan email`,
         `4. Cek dulu, baru kirim / revisi / jadwal`,
       ].join("\n"),
       `Pilih menu di bawah ya. Butuh aku lagi? Ketik ${code("/start")}.`,

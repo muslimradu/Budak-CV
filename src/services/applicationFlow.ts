@@ -202,7 +202,7 @@ export function formatDraftPreview(app: {
       : null;
 
   return joinBlocks(
-    bold(`Draft #${app.id} · ${kindLabel}`),
+    bold(`Email #${app.id} · ${kindLabel}`),
     [
       `Posisi: ${escapeHtml(app.job.position ?? "—")}`,
       `Perusahaan: ${escapeHtml(app.job.company ?? "—")}`,
@@ -262,7 +262,7 @@ export async function schedulePending(
   if (!pending) {
     return {
       ok: false,
-      reason: "Belum ada draft. Buat dulu dengan /draft ya.",
+      reason: "Belum ada email. Buat dulu dengan /draft ya.",
     };
   }
   const toEmail = pending.toEmail?.trim();
@@ -346,12 +346,12 @@ export async function sendApplicationById(
     include: { job: true },
   });
   if (!pending) {
-    return { ok: false, reason: "Draft-nya nggak ketemu." };
+    return { ok: false, reason: "Email-nya nggak ketemu." };
   }
   if (!["pending_confirm", "scheduled"].includes(pending.status)) {
     return {
       ok: false,
-      reason: `Draft ini belum bisa dikirim (status: ${pending.status}).`,
+      reason: `Email ini belum bisa dikirim (status: ${pending.status}).`,
     };
   }
 
@@ -450,7 +450,7 @@ export async function confirmAndSend(opts?: {
   if (!pending) {
     return {
       ok: false,
-      reason: "Belum ada draft yang siap dikirim. Buat dulu dengan /draft ya.",
+      reason: "Belum ada email yang siap dikirim. Buat dulu dengan /draft ya.",
     };
   }
   return sendApplicationById(pending.id, opts);

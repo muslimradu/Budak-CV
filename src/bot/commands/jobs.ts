@@ -38,7 +38,7 @@ export function registerJobsCommand(bot: Bot): void {
         bold("Lowongan kamu"),
         divider(),
         ...blocks,
-        `Mau bikin draft? ${code("/draft")} atau ${code("/draft <id>")}.`,
+        `Mau buat email? ${code("/draft")} atau ${code("/draft <id>")}.`,
       ),
       replyHtml,
     );
