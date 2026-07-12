@@ -46,33 +46,59 @@ export const REVISI_FIELD_LABELS: Record<RevisiField, string> = {
   position: "posisi",
   email: "email tujuan",
   nama: "nama penerima",
-  sapaan: "sapaan (Mas/Mbak/Bapak/Ibu/Mr/Ms)",
+  sapaan: "sapaan",
   subject: "subject",
   body: "body email",
 };
+
+const REGEN_FIELDS: RevisiField[] = [
+  "company",
+  "position",
+  "email",
+  "nama",
+  "sapaan",
+];
 
 export function parseRevisiField(raw: string): RevisiField | null {
   const key = raw.trim().toLowerCase();
   return ALIAS[key] ?? null;
 }
 
-export function revisiPrompt(field: RevisiField): string {
-  switch (field) {
-    case "company":
-      return "Kirim nama perusahaan yang baru:";
-    case "position":
-      return "Kirim nama posisi yang baru:";
-    case "email":
-      return "Kirim alamat email tujuan yang baru:";
-    case "nama":
-      return "Kirim nama penerima yang baru (contoh: Budi Santoso):";
-    case "sapaan":
-      return "Kirim sapaan: bapak · ibu · mas · mbak · mr · ms · mrs (atau ketik hapus untuk mengosongkan):";
-    case "subject":
-      return "Kirim subject email yang baru:";
-    case "body":
-      return "Kirim body email yang baru (teks lengkap):";
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Parse inline revisi args, e.g.
+ * "sapaan: Mbak"
+ * "nama: Dodit Mulyanto, sapaan: Mas, perusahaan: PT Angin Ribut"
+ */
+export function parseRevisiUpdates(
+  raw: string,
+): Partial<Record<RevisiField, string>> {
+  const text = raw.trim();
+  if (!text) return {};
+
+  const keys = Object.keys(ALIAS).sort((a, b) => b.length - a.length);
+  const keyAlt = keys.map(escapeRegExp).join("|");
+  const re = new RegExp(`(${keyAlt})\\s*:\\s*`, "gi");
+  const matches = [...text.matchAll(re)];
+  if (matches.length === 0) return {};
+
+  const result: Partial<Record<RevisiField, string>> = {};
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i]!;
+    const field = parseRevisiField(m[1] ?? "");
+    if (!field) continue;
+    const start = (m.index ?? 0) + m[0].length;
+    const end = i + 1 < matches.length ? matches[i + 1]!.index! : text.length;
+    const value = text
+      .slice(start, end)
+      .replace(/,\s*$/, "")
+      .trim();
+    if (value) result[field] = value;
   }
+  return result;
 }
 
 async function getEmailLanguagePref(
@@ -139,14 +165,113 @@ async function regenerateDraftBody(
   });
 }
 
-export async function applyRevisiValue(input: {
+async function applyOneField(
+  pending: {
+    id: number;
+    jobId: number;
+  },
+  field: RevisiField,
+  rawValue: string,
+): Promise<void> {
+  const value = rawValue.trim();
+  if (!value) throw new Error(`Nilai ${REVISI_FIELD_LABELS[field]} kosong.`);
+
+  if (field === "company") {
+    await prisma.jobPosting.update({
+      where: { id: pending.jobId },
+      data: { company: value },
+    });
+    return;
+  }
+  if (field === "position") {
+    await prisma.jobPosting.update({
+      where: { id: pending.jobId },
+      data: { position: value },
+    });
+    return;
+  }
+  if (field === "email") {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      throw new Error("Format email tidak valid.");
+    }
+    const inferredName = nameFromEmailLocalPart(value);
+    await prisma.jobPosting.update({
+      where: { id: pending.jobId },
+      data: {
+        recruiterEmail: value,
+        recruiterName: inferredName,
+      },
+    });
+    await prisma.application.update({
+      where: { id: pending.id },
+      data: { toEmail: value },
+    });
+    return;
+  }
+  if (field === "nama") {
+    const name = cleanRecipientName(value);
+    if (!name) {
+      throw new Error(
+        "Nama penerima tidak valid. Contoh: Budi Santoso (bukan Tim Rekrutmen).",
+      );
+    }
+    await prisma.jobPosting.update({
+      where: { id: pending.jobId },
+      data: { recruiterName: name },
+    });
+    return;
+  }
+  if (field === "sapaan") {
+    const lower = value.toLowerCase().trim();
+    if (["hapus", "kosong", "none", "null", "-"].includes(lower)) {
+      await prisma.jobPosting.update({
+        where: { id: pending.jobId },
+        data: { recruiterHonorific: null },
+      });
+      return;
+    }
+    const honorific = parseHonorific(value);
+    if (!honorific) {
+      throw new Error(
+        "Sapaan tidak valid. Pilih: bapak · ibu · mas · mbak · mr · ms · mrs",
+      );
+    }
+    await prisma.jobPosting.update({
+      where: { id: pending.jobId },
+      data: { recruiterHonorific: honorific },
+    });
+    return;
+  }
+  if (field === "subject") {
+    await prisma.application.update({
+      where: { id: pending.id },
+      data: { subject: value },
+    });
+    return;
+  }
+  if (field === "body") {
+    if (value.length < 20) {
+      throw new Error("Body terlalu pendek.");
+    }
+    await prisma.application.update({
+      where: { id: pending.id },
+      data: { body: value },
+    });
+  }
+}
+
+export async function applyRevisiUpdates(input: {
   telegramId: string;
   applicationId: number;
-  field: RevisiField;
-  value: string;
-}): Promise<{ applicationId: number }> {
-  const value = input.value.trim();
-  if (!value) throw new Error("Nilai revisi kosong.");
+  updates: Partial<Record<RevisiField, string>>;
+}): Promise<{ applicationId: number; changed: RevisiField[] }> {
+  const entries = (
+    Object.entries(input.updates) as Array<[RevisiField, string]>
+  ).filter(([, v]) => v.trim().length > 0);
+
+  if (entries.length === 0) {
+    throw new Error("Tidak ada field revisi yang valid.");
+  }
 
   const pending = await prisma.application.findFirst({
     where: {
@@ -159,84 +284,30 @@ export async function applyRevisiValue(input: {
     throw new Error("Draft tidak ditemukan / sudah tidak aktif.");
   }
 
-  if (input.field === "company") {
-    await prisma.jobPosting.update({
-      where: { id: pending.jobId },
-      data: { company: value },
-    });
-    await regenerateDraftBody(input.telegramId, pending.id);
-  } else if (input.field === "position") {
-    await prisma.jobPosting.update({
-      where: { id: pending.jobId },
-      data: { position: value },
-    });
-    await regenerateDraftBody(input.telegramId, pending.id);
-  } else if (input.field === "email") {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      throw new Error("Format email tidak valid.");
-    }
-    const inferredName = nameFromEmailLocalPart(value);
-    await prisma.jobPosting.update({
-      where: { id: pending.jobId },
-      data: {
-        recruiterEmail: value,
-        // Refresh greeting source when email changes
-        recruiterName: inferredName,
-      },
-    });
-    await prisma.application.update({
-      where: { id: pending.id },
-      data: { toEmail: value },
-    });
-    await regenerateDraftBody(input.telegramId, pending.id);
-  } else if (input.field === "nama") {
-    const name = cleanRecipientName(value);
-    if (!name) {
-      throw new Error(
-        "Nama penerima tidak valid. Contoh: Budi Santoso (bukan Tim Rekrutmen).",
-      );
-    }
-    await prisma.jobPosting.update({
-      where: { id: pending.jobId },
-      data: { recruiterName: name },
-    });
-    await regenerateDraftBody(input.telegramId, pending.id);
-  } else if (input.field === "sapaan") {
-    const lower = value.toLowerCase().trim();
-    if (["hapus", "kosong", "none", "null", "-"].includes(lower)) {
-      await prisma.jobPosting.update({
-        where: { id: pending.jobId },
-        data: { recruiterHonorific: null },
-      });
-    } else {
-      const honorific = parseHonorific(value);
-      if (!honorific) {
-        throw new Error(
-          "Sapaan tidak valid. Pilih: bapak · ibu · mas · mbak · mr · ms · mrs",
-        );
-      }
-      await prisma.jobPosting.update({
-        where: { id: pending.jobId },
-        data: { recruiterHonorific: honorific },
-      });
-    }
-    await regenerateDraftBody(input.telegramId, pending.id);
-  } else if (input.field === "subject") {
-    await prisma.application.update({
-      where: { id: pending.id },
-      data: { subject: value },
-    });
-  } else if (input.field === "body") {
-    if (value.length < 20) {
-      throw new Error("Body terlalu pendek.");
-    }
-    await prisma.application.update({
-      where: { id: pending.id },
-      data: { body: value },
-    });
+  const changed: RevisiField[] = [];
+  const regenNeeded = entries.some(([field]) => REGEN_FIELDS.includes(field));
+  const subjectBody = entries.filter(
+    ([field]) => field === "subject" || field === "body",
+  );
+  const others = entries.filter(
+    ([field]) => field !== "subject" && field !== "body",
+  );
+
+  for (const [field, value] of others) {
+    await applyOneField(pending, field, value);
+    changed.push(field);
   }
 
-  // Jika sebelumnya scheduled, kembali ke pending_confirm agar user konfirmasi ulang
+  if (regenNeeded) {
+    await regenerateDraftBody(input.telegramId, pending.id);
+  }
+
+  // Subject/body applied after regen so user overrides stick
+  for (const [field, value] of subjectBody) {
+    await applyOneField(pending, field, value);
+    changed.push(field);
+  }
+
   if (pending.status === "scheduled") {
     await prisma.application.update({
       where: { id: pending.id },
@@ -244,7 +315,22 @@ export async function applyRevisiValue(input: {
     });
   }
 
-  return { applicationId: pending.id };
+  return { applicationId: pending.id, changed };
+}
+
+/** @deprecated use applyRevisiUpdates */
+export async function applyRevisiValue(input: {
+  telegramId: string;
+  applicationId: number;
+  field: RevisiField;
+  value: string;
+}): Promise<{ applicationId: number }> {
+  const result = await applyRevisiUpdates({
+    telegramId: input.telegramId,
+    applicationId: input.applicationId,
+    updates: { [input.field]: input.value },
+  });
+  return { applicationId: result.applicationId };
 }
 
 export async function requirePendingForRevisi() {

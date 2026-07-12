@@ -219,7 +219,7 @@ export function formatDraftPreview(app: {
     [
       `Kirim sekarang: balas ${code("YA")} atau ${code("KIRIM")}`,
       `Jadwal: ${code("/schedule 18:00")} atau ${code("/schedule 12/07/2026 18:00")}`,
-      `Revisi: ${code("/revisi perusahaan")} · posisi · email · nama · sapaan · subject · body`,
+      `Revisi: ${code("/revisi sapaan: Mbak")} · ${code("/revisi nama: …, perusahaan: …")}`,
       `Tanpa email: ${code("/send email@domain.com")}`,
       `Batal: ${code("BATAL")}`,
     ].join("\n"),

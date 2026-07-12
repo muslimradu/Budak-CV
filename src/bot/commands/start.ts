@@ -12,7 +12,7 @@ export function registerStartCommand(bot: Bot): void {
         `1. ${code("/cv")} — upload PDF CV`,
         "2. Kirim lowongan (teks / PDF / foto)",
         `3. ${code("/draft")} atau ${code("/draft 3")} — buat email`,
-        `4. ${code("/revisi perusahaan")} — ubah data draft`,
+        `4. ${code("/revisi sapaan: Mbak")} — ubah draft langsung`,
         `5. ${code("/schedule 18:00")} — jadwalkan kirim, atau balas ${code("YA")}`,
       ].join("\n"),
       [

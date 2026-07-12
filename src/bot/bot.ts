@@ -18,7 +18,7 @@ const COMMAND_MENU = [
   { command: "start", description: "Panduan & menu utama" },
   { command: "cv", description: "Upload PDF CV default" },
   { command: "draft", description: "Draft email (/draft atau /draft 3)" },
-  { command: "revisi", description: "Revisi draft (/revisi perusahaan)" },
+  { command: "revisi", description: "Revisi: /revisi sapaan: Mbak" },
   { command: "schedule", description: "Jadwalkan kirim (/schedule 18:00)" },
   { command: "followup", description: "Draft follow-up lamaran" },
   { command: "lang", description: "Bahasa email: auto / en / id" },
