@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserSettings {
+  id                    Int      @id @default(autoincrement())
+  telegramId            String   @unique
+  gmailEmail            String?
+  gmailTokenJson        String?
+  defaultCvBytes        Bytes?
+  defaultCvOriginalName String?
+  applicantFullName     String?
+  cvProfileJson         String?
+  awaitingCv            Boolean  @default(false)
+  sessionMode           String   @default("idle")
+  sessionJson           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model JobPosting {
+  id               Int           @id @default(autoincrement())
+  rawText          String
+  position         String?
+  company          String?
+  recruiterEmail   String?
+  emailSubject     String?
+  requirementsJson String        @default("[]")
+  language         String        @default("id")
+  status           String        @default("active")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  applications     Application[]
+}
+
+model Application {
+  id                 Int        @id @default(autoincrement())
+  jobId              Int
+  job                JobPosting @relation(fields: [jobId], references: [id])
+  kind               String     @default("application")
+  toEmail            String?
+  subject            String
+  body               String
+  attachmentFilename String?
+  status             String     @default("draft")
+  gmailMessageId     String?
+  createdAt          DateTime   @default(now())
+  sentAt             DateTime?
+  auditLogs          AuditLog[]
+}
+
+model AuditLog {
+  id            Int          @id @default(autoincrement())
+  action        String
+  applicationId Int?
+  application   Application? @relation(fields: [applicationId], references: [id])
+  detail        String
+  createdAt     DateTime     @default(now())
+}
