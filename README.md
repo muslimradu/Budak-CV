@@ -117,21 +117,63 @@ npm start      # migrate deploy + bot (production / Railway)
 
 ## Deploy ke Railway
 
-1. Buat project di [Railway](https://railway.app) → **New Project**
-2. Tambah **PostgreSQL** addon
-3. Deploy repo ini (GitHub) sebagai service
-4. Di service bot, set Variables (dari `.env.example`):
-   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_USER_ID`
-   - `LLM_PROVIDER` + API key terkait
-   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-   - `DATABASE_URL` — reference dari Postgres addon (`${{Postgres.DATABASE_URL}}`)
-   - Opsional: `GMAIL_TOKEN_JSON` (satu kali) jika belum auth ke DB yang sama
-5. Start command sudah di [`railway.toml`](railway.toml): `npm start` (= `prisma migrate deploy && tsx src/index.ts`)
-6. Pastikan service **tidak sleep** (bot polling harus selalu hidup)
-7. Auth Gmail: dari laptop, set `.env` `DATABASE_URL` ke **public** Postgres Railway → `npm run gmail:auth`  
-   Atau tempel JSON token ke `GMAIL_TOKEN_JSON` di Railway Variables
+Login Railway bisa pakai **Google/Gmail** (tidak wajib login via GitHub). Deploy dari laptop dengan Railway CLI, atau hubungkan GitHub belakangan di Account → Integrations.
 
-Setelah deploy: upload CV lagi via `/cv` (data SQLite lama tidak ikut).
+### A. Siapkan di laptop (sekali)
+
+1. Install CLI: `npm i -g @railway/cli`
+2. Login: `railway login` (browser → pilih Google/Gmail)
+3. Siapkan nilai env dari `.env` lokal (token Telegram, Groq/Claude, Google OAuth) — **jangan** commit `.env`
+
+### B. Project + Postgres di Railway
+
+1. Buka [railway.app](https://railway.app) → login Google → **New Project**
+2. **Add PostgreSQL** (Add Service → Database → PostgreSQL)
+3. Di project yang sama, buat service kosong: **Add Service → Empty Service** (atau `railway init` dari folder project)
+4. Dari folder `BudakCV` di terminal:
+   ```bash
+   railway link          # pilih project + service bot
+   railway up            # upload & deploy kode
+   ```
+
+### C. Variables (service bot)
+
+Di Railway → service bot → **Variables**, isi:
+
+| Variable | Sumber |
+|----------|--------|
+| `TELEGRAM_BOT_TOKEN` | BotFather |
+| `TELEGRAM_USER_ID` | user id Telegram Anda |
+| `LLM_PROVIDER` | `groq` atau `claude` |
+| `GROQ_API_KEY` / `ANTHROPIC_API_KEY` | sesuai provider |
+| `GROQ_MODEL`, `GROQ_VISION_MODEL` | opsional (ada default) |
+| `GOOGLE_CLIENT_ID` | Google Cloud OAuth |
+| `GOOGLE_CLIENT_SECRET` | Google Cloud OAuth |
+| `GOOGLE_REDIRECT_URI` | `http://127.0.0.1:53682/oauth2callback` |
+| `DATABASE_URL` | **Variable Reference** → Postgres → `DATABASE_URL` |
+| `MAX_EMAILS_PER_DAY` | `10` (opsional) |
+| `GMAIL_TOKEN_JSON` | opsional, bootstrap sekali (lihat bawah) |
+
+Start command sudah di [`railway.toml`](railway.toml): `npm start` (= migrate + bot). Pastikan service **tidak sleep**.
+
+### D. Auth Gmail (wajib, dari laptop)
+
+OAuth callback tetap lokal (`127.0.0.1`). Token harus masuk **Postgres Railway**:
+
+1. Di Postgres Railway → **Connect** → salin **public** `DATABASE_URL` (bukan hanya internal)
+2. Sementara di `.env` lokal, set `DATABASE_URL` ke URL public itu
+3. `npm run gmail:auth` → login Gmail di browser sampai sukses
+4. (Opsional) salin JSON yang dicetak CLI ke variable `GMAIL_TOKEN_JSON` di Railway
+5. Kembalikan `DATABASE_URL` lokal ke Postgres Docker jika masih develop lokal
+
+Redeploy / restart service bot setelah token ada di DB.
+
+### E. Setelah online
+
+1. Cek **Deployments** + **Logs** — harus ada `@… online (polling)`
+2. Di Telegram: `/start` → `/cv` (upload ulang CV) → kirim lowongan → `/draft`
+
+**Alternatif tanpa CLI:** di Railway Account hubungkan GitHub, lalu **Add Service → GitHub Repo** → pilih `muslimradu/Budak-CV`, lalu isi Variables sama seperti di atas.
 
 ## Perintah bot
 
