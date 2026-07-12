@@ -14,6 +14,8 @@ export type RevisiField =
   | "company"
   | "position"
   | "email"
+  | "nama"
+  | "sapaan"
   | "subject"
   | "body";
 

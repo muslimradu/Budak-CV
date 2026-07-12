@@ -22,6 +22,8 @@ export function registerRevisiCommand(bot: Bot): void {
             `${code("/revisi perusahaan")}`,
             `${code("/revisi posisi")}`,
             `${code("/revisi email")}`,
+            `${code("/revisi nama")}`,
+            `${code("/revisi sapaan")}`,
             `${code("/revisi subject")}`,
             `${code("/revisi body")}`,
           ].join("\n"),

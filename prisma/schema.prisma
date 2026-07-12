@@ -30,6 +30,8 @@ model JobPosting {
   position         String?
   company          String?
   recruiterEmail   String?
+  recruiterName    String?
+  recruiterHonorific String?
   emailSubject     String?
   requirementsJson String        @default("[]")
   language         String        @default("id")

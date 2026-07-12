@@ -418,7 +418,12 @@ export function registerMessageHandlers(bot: Bot): void {
       }
 
       const needsWait =
-        field === "company" || field === "position" || field === "body";
+        field === "company" ||
+        field === "position" ||
+        field === "email" ||
+        field === "nama" ||
+        field === "sapaan" ||
+        field === "body";
       if (needsWait) {
         await ctx.reply(
           joinBlocks(

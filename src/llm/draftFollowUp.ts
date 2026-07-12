@@ -2,6 +2,11 @@ import { z } from "zod";
 import { chatJson } from "./client.js";
 import type { CvProfile } from "./extractCv.js";
 import { cleanParagraph, finalizeEmailBody } from "../utils/emailBody.js";
+import {
+  formatNamedGreeting,
+  resolveRecipientHonorific,
+  resolveRecipientName,
+} from "../utils/recipientName.js";
 
 const partsSchema = z.object({
   greeting: z.string().min(1),
@@ -45,6 +50,7 @@ Rules:
   - "en" => entire email in English; signOff "Best regards,"
   - "id" => entire email in Indonesian; signOff "Hormat saya,"
   - Do NOT mix languages. Do NOT default to Indonesian when language is "en".
+- GREETING: if input.recipientName is set, address that person (with input.recipientHonorific if present: Bapak/Ibu/Mas/Mbak/Mr/Ms/Mrs). Otherwise use Tim Rekrutmen / Hiring Manager.
 - Formal, concise, no fluff, no overclaiming
 - Never invent interview dates or promises not in the context
 - No markdown, no Subject in body`;
@@ -56,6 +62,9 @@ export async function draftFollowUpEmail(input: {
   previousSubject: string;
   followUpContext: string;
   cv: CvProfile;
+  recruiterName?: string | null;
+  recruiterEmail?: string | null;
+  recruiterHonorific?: string | null;
 }): Promise<{ subject: string; body: string }> {
   const fullName =
     (input.cv.fullName ?? "").trim() ||
@@ -69,6 +78,14 @@ export async function draftFollowUpEmail(input: {
         ? ` at ${input.company}`
         : ` di ${input.company}`
       : "";
+  const recipientName = resolveRecipientName({
+    recruiterName: input.recruiterName,
+    recruiterEmail: input.recruiterEmail,
+  });
+  const recipientHonorific = resolveRecipientHonorific({
+    honorific: input.recruiterHonorific,
+    recruiterName: input.recruiterName,
+  });
 
   const content = await chatJson(
     SYSTEM,
@@ -79,6 +96,8 @@ export async function draftFollowUpEmail(input: {
           input.language === "en"
             ? "Write the entire follow-up in English."
             : "Tulis seluruh follow-up dalam Bahasa Indonesia.",
+        recipientName,
+        recipientHonorific,
         position: input.position,
         company: input.company,
         previousSubject: input.previousSubject,
@@ -91,10 +110,18 @@ export async function draftFollowUpEmail(input: {
   );
 
   const parts = partsSchema.parse(JSON.parse(content) as unknown);
+  if (recipientName) {
+    parts.greeting = formatNamedGreeting(
+      input.language,
+      recipientName,
+      recipientHonorific,
+    );
+  }
   const body = assembleBody(parts, fullName, [
     input.position,
     input.company,
     fullName,
+    recipientName,
   ]);
 
   const subject =

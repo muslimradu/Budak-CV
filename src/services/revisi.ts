@@ -6,6 +6,11 @@ import {
   resolveEmailLanguage,
   type EmailLanguagePref,
 } from "../utils/language.js";
+import {
+  cleanRecipientName,
+  nameFromEmailLocalPart,
+  parseHonorific,
+} from "../utils/recipientName.js";
 import { getCvContext } from "./cvStorage.js";
 
 export type { RevisiField };
@@ -20,6 +25,14 @@ const ALIAS: Record<string, RevisiField> = {
   kepada: "email",
   to: "email",
   mail: "email",
+  nama: "nama",
+  name: "nama",
+  penerima: "nama",
+  recruiter: "nama",
+  sapaan: "sapaan",
+  honorific: "sapaan",
+  title: "sapaan",
+  gelar: "sapaan",
   subject: "subject",
   subjek: "subject",
   judul: "subject",
@@ -32,6 +45,8 @@ export const REVISI_FIELD_LABELS: Record<RevisiField, string> = {
   company: "perusahaan",
   position: "posisi",
   email: "email tujuan",
+  nama: "nama penerima",
+  sapaan: "sapaan (Mas/Mbak/Bapak/Ibu/Mr/Ms)",
   subject: "subject",
   body: "body email",
 };
@@ -49,6 +64,10 @@ export function revisiPrompt(field: RevisiField): string {
       return "Kirim nama posisi yang baru:";
     case "email":
       return "Kirim alamat email tujuan yang baru:";
+    case "nama":
+      return "Kirim nama penerima yang baru (contoh: Budi Santoso):";
+    case "sapaan":
+      return "Kirim sapaan: bapak · ibu · mas · mbak · mr · ms · mrs (atau ketik hapus untuk mengosongkan):";
     case "subject":
       return "Kirim subject email yang baru:";
     case "body":
@@ -93,6 +112,8 @@ async function regenerateDraftBody(
     position: app.job.position,
     company: app.job.company,
     recruiterEmail: app.job.recruiterEmail,
+    recruiterName: app.job.recruiterName,
+    recruiterHonorific: parseHonorific(app.job.recruiterHonorific),
     emailSubject: app.job.emailSubject,
     keyRequirements: requirements,
     language,
@@ -104,6 +125,8 @@ async function regenerateDraftBody(
     cv: cv.profile,
     emailSubjectFromJob: app.job.emailSubject,
     language,
+    recipientName: app.job.recruiterName,
+    recipientHonorific: app.job.recruiterHonorific,
   });
 
   await prisma.application.update({
@@ -152,14 +175,52 @@ export async function applyRevisiValue(input: {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
       throw new Error("Format email tidak valid.");
     }
+    const inferredName = nameFromEmailLocalPart(value);
     await prisma.jobPosting.update({
       where: { id: pending.jobId },
-      data: { recruiterEmail: value },
+      data: {
+        recruiterEmail: value,
+        // Refresh greeting source when email changes
+        recruiterName: inferredName,
+      },
     });
     await prisma.application.update({
       where: { id: pending.id },
       data: { toEmail: value },
     });
+    await regenerateDraftBody(input.telegramId, pending.id);
+  } else if (input.field === "nama") {
+    const name = cleanRecipientName(value);
+    if (!name) {
+      throw new Error(
+        "Nama penerima tidak valid. Contoh: Budi Santoso (bukan Tim Rekrutmen).",
+      );
+    }
+    await prisma.jobPosting.update({
+      where: { id: pending.jobId },
+      data: { recruiterName: name },
+    });
+    await regenerateDraftBody(input.telegramId, pending.id);
+  } else if (input.field === "sapaan") {
+    const lower = value.toLowerCase().trim();
+    if (["hapus", "kosong", "none", "null", "-"].includes(lower)) {
+      await prisma.jobPosting.update({
+        where: { id: pending.jobId },
+        data: { recruiterHonorific: null },
+      });
+    } else {
+      const honorific = parseHonorific(value);
+      if (!honorific) {
+        throw new Error(
+          "Sapaan tidak valid. Pilih: bapak · ibu · mas · mbak · mr · ms · mrs",
+        );
+      }
+      await prisma.jobPosting.update({
+        where: { id: pending.jobId },
+        data: { recruiterHonorific: honorific },
+      });
+    }
+    await regenerateDraftBody(input.telegramId, pending.id);
   } else if (input.field === "subject") {
     await prisma.application.update({
       where: { id: pending.id },

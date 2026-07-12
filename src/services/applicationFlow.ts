@@ -10,6 +10,7 @@ import {
   resolveEmailLanguage,
   type EmailLanguagePref,
 } from "../utils/language.js";
+import { parseHonorific } from "../utils/recipientName.js";
 import {
   bold,
   code,
@@ -86,6 +87,8 @@ export async function createDraftApplication(
     position: job.position,
     company: job.company,
     recruiterEmail: job.recruiterEmail,
+    recruiterName: job.recruiterName,
+    recruiterHonorific: parseHonorific(job.recruiterHonorific),
     emailSubject: job.emailSubject,
     keyRequirements: requirements,
     language,
@@ -97,6 +100,8 @@ export async function createDraftApplication(
     cv: cv.profile,
     emailSubjectFromJob: job.emailSubject,
     language,
+    recipientName: job.recruiterName,
+    recipientHonorific: job.recruiterHonorific,
   });
 
   await cancelPendingApplications();
@@ -141,6 +146,9 @@ export async function createFollowUpDraft(
     previousSubject: previous.subject,
     followUpContext,
     cv: cv.profile,
+    recruiterName: previous.job.recruiterName,
+    recruiterEmail: previous.toEmail ?? previous.job.recruiterEmail,
+    recruiterHonorific: previous.job.recruiterHonorific,
   });
 
   await cancelPendingApplications();
@@ -211,7 +219,7 @@ export function formatDraftPreview(app: {
     [
       `Kirim sekarang: balas ${code("YA")} atau ${code("KIRIM")}`,
       `Jadwal: ${code("/schedule 18:00")} atau ${code("/schedule 12/07/2026 18:00")}`,
-      `Revisi: ${code("/revisi perusahaan")} · posisi · email · subject · body`,
+      `Revisi: ${code("/revisi perusahaan")} · posisi · email · nama · sapaan · subject · body`,
       `Tanpa email: ${code("/send email@domain.com")}`,
       `Batal: ${code("BATAL")}`,
     ].join("\n"),

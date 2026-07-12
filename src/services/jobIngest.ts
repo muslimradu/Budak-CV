@@ -7,6 +7,7 @@ import {
 } from "../llm/extractJob.js";
 import type { ImageInput } from "../llm/client.js";
 import { bold, code, escapeHtml, joinBlocks } from "../bot/format.js";
+import { formatHonorificLabel } from "../utils/recipientName.js";
 
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse") as (
@@ -29,6 +30,8 @@ async function persistJob(rawText: string, extracted: ExtractedJob) {
       position: extracted.position,
       company: extracted.company,
       recruiterEmail: extracted.recruiterEmail,
+      recruiterName: extracted.recruiterName,
+      recruiterHonorific: extracted.recruiterHonorific,
       emailSubject: extracted.emailSubject ?? null,
       requirementsJson: JSON.stringify(extracted.keyRequirements),
       language: extracted.language,
@@ -83,6 +86,8 @@ export function formatJobSummary(job: {
   position: string | null;
   company: string | null;
   recruiterEmail: string | null;
+  recruiterName?: string | null;
+  recruiterHonorific?: string | null;
   emailSubject?: string | null;
   requirementsJson: string;
   language: string;
@@ -106,6 +111,11 @@ export function formatJobSummary(job: {
     [
       `Posisi: ${escapeHtml(job.position ?? "—")}`,
       `Perusahaan: ${escapeHtml(job.company ?? "—")}`,
+      `Penerima: ${escapeHtml(
+        [formatHonorificLabel(job.recruiterHonorific), job.recruiterName]
+          .filter((x) => x && x !== "—")
+          .join(" ") || "—",
+      )}`,
       `Email: ${code(job.recruiterEmail ?? "tidak terdeteksi")}`,
       `Subject: ${escapeHtml(job.emailSubject ?? "otomatis [Posisi] - [Nama]")}`,
       `Bahasa: ${escapeHtml(job.language)}`,
