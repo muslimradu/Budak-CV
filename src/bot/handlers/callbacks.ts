@@ -8,10 +8,12 @@ import {
 import {
   cancelPending,
   confirmAndSend,
+  createDraftApplication,
   getApplicationForPreview,
   getPendingApplication,
   listScheduledApplications,
 } from "../../services/applicationFlow.js";
+import { deleteJobById } from "../../services/jobComplete.js";
 import {
   bold,
   code,
@@ -31,6 +33,7 @@ import {
   deleteDraftPreviewMessage,
   sendDraftPreview,
 } from "../draftPreview.js";
+import { refreshJobsListAfterDelete } from "../jobsList.js";
 import { handleMenuButton, showRevisiPicker } from "./menu.js";
 
 const REVISI_FIELDS = new Set<string>([
@@ -120,6 +123,41 @@ export function registerCallbackHandlers(bot: Bot): void {
     const menuLabel = labelForMenuCallback(data);
     if (menuLabel) {
       await handleMenuButton(ctx, menuLabel);
+      return;
+    }
+
+    if (data.startsWith("j:d:")) {
+      const jobId = Number(data.slice(4));
+      if (!Number.isInteger(jobId) || jobId <= 0) return;
+
+      await setSession(telegramId, "idle");
+      await ctx.reply(
+        joinBlocks(
+          bold("Sebentar…"),
+          `Aku susun email buat lowongan ${code(`#${jobId}`)}.`,
+        ),
+        replyHtml,
+      );
+      try {
+        const app = await createDraftApplication(telegramId, jobId);
+        await sendDraftPreview(ctx, telegramId, app);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        await ctx.reply(joinBlocks(bold("Gagal buat email"), msg), replyHtml);
+      }
+      return;
+    }
+
+    if (data.startsWith("j:x:")) {
+      const jobId = Number(data.slice(4));
+      if (!Number.isInteger(jobId) || jobId <= 0) return;
+
+      const ok = await deleteJobById(jobId);
+      await refreshJobsListAfterDelete(
+        ctx,
+        telegramId,
+        ok ? { ok: true, deletedJobId: jobId } : { ok: false },
+      );
       return;
     }
 

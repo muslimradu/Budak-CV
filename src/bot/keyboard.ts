@@ -41,6 +41,8 @@ export const Cb = {
   revisiBack: "r:back",
   field: (f: string) => `r:f:${f}`,
   sapaan: (v: string) => `r:s:${v}`,
+  jobDraft: (id: number) => `j:d:${id}`,
+  jobDelete: (id: number) => `j:x:${id}`,
 } as const;
 
 const MENU_CALLBACK_TO_LABEL: Record<string, MenuButtonLabel> = {
@@ -82,6 +84,37 @@ export function mainMenuInline(): InlineKeyboard {
     .row()
     .text(MenuBtn.help, Cb.menu.help)
     .text(MenuBtn.cancel, Cb.menu.cancel);
+}
+
+/** Tombol di bawah ringkasan lowongan tersimpan. */
+export function jobActionsInline(jobId: number): InlineKeyboard {
+  return new InlineKeyboard()
+    .text(MenuBtn.draft, Cb.jobDraft(jobId))
+    .text(MenuBtn.delete, Cb.jobDelete(jobId));
+}
+
+/** Tombol per lowongan di daftar "Lowongan kamu". */
+export function jobsListActionsInline(
+  jobs: Array<{ id: number; position: string | null }>,
+): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const j of jobs) {
+    const pos = (j.position ?? "—").trim() || "—";
+    const short =
+      pos.length > 18 ? `${pos.slice(0, 17)}…` : pos;
+    kb.text(`✉️ #${j.id} ${short}`, Cb.jobDraft(j.id))
+      .text(`🗑️ #${j.id}`, Cb.jobDelete(j.id))
+      .row();
+  }
+  return kb;
+}
+
+/** Attach job-list actions under "Lowongan kamu". */
+export function withJobsListActions<T extends Record<string, unknown>>(
+  jobs: Array<{ id: number; position: string | null }>,
+  extra: T,
+): T & { reply_markup: InlineKeyboard } {
+  return { ...extra, reply_markup: jobsListActionsInline(jobs) };
 }
 
 /** Tombol di bawah pesan preview draft (inline — chat tetap full). */
@@ -130,6 +163,14 @@ export function sapaanInline(): InlineKeyboard {
 export const removeReplyKeyboard = {
   remove_keyboard: true as const,
 };
+
+/** Attach job actions under a saved job summary. */
+export function withJobActions<T extends Record<string, unknown>>(
+  jobId: number,
+  extra: T,
+): T & { reply_markup: InlineKeyboard } {
+  return { ...extra, reply_markup: jobActionsInline(jobId) };
+}
 
 /** Attach menu utama inline di bawah pesan. */
 export function withMainMenu<T extends Record<string, unknown>>(

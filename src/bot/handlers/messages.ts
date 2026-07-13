@@ -31,6 +31,8 @@ import {
   deleteDraftPreviewMessage,
   sendDraftPreview,
 } from "../draftPreview.js";
+import { withJobActions } from "../keyboard.js";
+import { rememberJobUiMessage } from "../jobsList.js";
 import {
   applyRevisiUpdates,
   REVISI_FIELD_LABELS,
@@ -103,7 +105,13 @@ async function replyAfterJobIngest(
     await ctx.reply(formatMissingFieldsPrompt(job.id, missing), replyHtml);
     return;
   }
-  await ctx.reply(formatJobSummary(job), replyHtml);
+  const sent = (await ctx.reply(
+    formatJobSummary(job),
+    withJobActions(job.id, replyHtml),
+  )) as { message_id: number };
+  if (ctx.from) {
+    await rememberJobUiMessage(String(ctx.from.id), sent.message_id);
+  }
 }
 
 export function registerMessageHandlers(bot: Bot): void {
@@ -426,7 +434,11 @@ export function registerMessageHandlers(bot: Bot): void {
         joinBlocks(bold("Lengkap"), "Ini ringkasan lowongan kamu:"),
         replyHtml,
       );
-      await ctx.reply(formatJobSummary(job), replyHtml);
+      const sent = await ctx.reply(
+        formatJobSummary(job),
+        withJobActions(job.id, replyHtml),
+      );
+      await rememberJobUiMessage(telegramId, sent.message_id);
       return;
     }
 

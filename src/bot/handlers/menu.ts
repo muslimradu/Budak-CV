@@ -4,7 +4,6 @@ import {
   createDraftApplication,
   getLastSentApplication,
   getPendingApplication,
-  listActiveJobs,
   listRecentApplications,
   listScheduledApplications,
 } from "../../services/applicationFlow.js";
@@ -19,12 +18,16 @@ import {
   joinBlocks,
   replyHtml,
 } from "../format.js";
-import { MenuBtn, revisiFieldsInline } from "../keyboard.js";
+import {
+  MenuBtn,
+  revisiFieldsInline,
+} from "../keyboard.js";
 import { setSession } from "../session.js";
 import {
   deleteDraftPreviewMessage,
   sendDraftPreview,
 } from "../draftPreview.js";
+import { deleteJobsListMessages, sendJobsList } from "../jobsList.js";
 
 export async function showRevisiPicker(ctx: Context): Promise<void> {
   const pending = await getPendingApplication();
@@ -153,33 +156,8 @@ export async function handleMenuButton(
 
   if (text === MenuBtn.jobs) {
     await setSession(telegramId, "idle");
-    const jobs = await listActiveJobs(10);
-    if (jobs.length === 0) {
-      await ctx.reply(
-        joinBlocks(
-          bold("Belum ada lowongan"),
-          "Kirim aja teks, PDF, atau foto lowongannya ke aku.",
-        ),
-        replyHtml,
-      );
-      return true;
-    }
-    const blocks = jobs.map((j) =>
-      [
-        bold(`#${j.id} · ${escapeHtml(j.position ?? "—")}`),
-        `Perusahaan: ${escapeHtml(j.company ?? "—")}`,
-        `Email: ${code(j.recruiterEmail ?? "—")}`,
-      ].join("\n"),
-    );
-    await ctx.reply(
-      joinBlocks(
-        bold("Lowongan kamu"),
-        divider(),
-        ...blocks,
-        `Mau buat email? Pilih ${MenuBtn.draft} di /start atau ${code("/draft <id>")}.`,
-      ),
-      replyHtml,
-    );
+    await deleteJobsListMessages(ctx, telegramId);
+    await sendJobsList(ctx, telegramId);
     return true;
   }
 
@@ -266,14 +244,11 @@ export async function handleMenuButton(
   }
 
   if (text === MenuBtn.delete) {
-    await ctx.reply(
-      joinBlocks(
-        bold("Hapus lowongan"),
-        "Pilih salah satu:",
-        [code("/delete"), code("/delete 3"), code("/delete all")].join("\n"),
-      ),
-      replyHtml,
-    );
+    await deleteJobsListMessages(ctx, telegramId);
+    await sendJobsList(ctx, telegramId, {
+      notice: `Mau hapus? Ketik ${code("/delete 3")} · ${code("/delete all")} — atau pakai tombol di bawah.`,
+      detailed: true,
+    });
     return true;
   }
 

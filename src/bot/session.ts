@@ -27,6 +27,8 @@ export type SessionPayload = {
   revisiField?: RevisiField;
   /** message_id preview email di chat, untuk dihapus saat batal. */
   draftMessageId?: number;
+  /** message_id daftar/ringkasan lowongan, untuk dihapus saat refresh. */
+  jobsListMessageId?: number;
 };
 
 export type SessionState = {
