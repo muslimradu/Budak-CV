@@ -15,9 +15,12 @@ const HELP = joinBlocks(
   [
     code("/revisi sapaan: Mbak"),
     code("/revisi nama: Dodit, sapaan: Mas"),
-    code("/revisi nama: Dodit, sapaan: Mas, perusahaan: PT Angin Ribut"),
+    code(
+      "/revisi body: hilangkan pengalaman Katalon, ganti dengan Playwright di tim sebelumnya",
+    ),
   ].join("\n"),
   "Field: perusahaan · posisi · email · nama · sapaan · subject · body",
+  "Untuk body: tulis instruksi — aku akan menyusun ulang isi emailnya.",
 );
 
 export function registerRevisiCommand(bot: Bot): void {
@@ -35,7 +38,8 @@ export function registerRevisiCommand(bot: Bot): void {
       await ctx.reply(
         joinBlocks(
           bold("Formatnya belum pas"),
-          `Coba kayak gini: ${code("/revisi sapaan: Mbak")}`,
+          `Coba: ${code("/revisi sapaan: Mbak")}`,
+          `Atau: ${code("/revisi body: ganti katalon dengan playwright")}`,
         ),
         replyHtml,
       );
@@ -55,11 +59,17 @@ export function registerRevisiCommand(bot: Bot): void {
     }
 
     const needsWait = Object.keys(updates).some((k) =>
-      ["company", "position", "email", "nama", "sapaan"].includes(k),
+      ["company", "position", "email", "nama", "sapaan", "body"].includes(k),
     );
     if (needsWait) {
+      const waitingBody = "body" in updates;
       await ctx.reply(
-        joinBlocks(bold("Sebentar…"), "Aku update email kamu."),
+        joinBlocks(
+          bold("Sebentar…"),
+          waitingBody
+            ? "Aku susun ulang body email sesuai instruksi kamu."
+            : "Aku update email kamu.",
+        ),
         replyHtml,
       );
     }

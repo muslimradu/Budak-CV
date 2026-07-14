@@ -46,6 +46,9 @@ export async function showRevisiPicker(ctx: Context): Promise<void> {
       bold("Mau ubah bagian mana?"),
       "Pilih di bawah, atau ketik langsung misalnya:",
       code("/revisi sapaan: Mbak"),
+      code(
+        "/revisi body: hilangkan Katalon, ganti dengan Playwright",
+      ),
     ),
     { ...replyHtml, reply_markup: revisiFieldsInline() },
   );
@@ -81,6 +84,7 @@ export async function handleMenuButton(
           `${code("/cv")} — upload CV`,
           `${code("/draft")} — buat email`,
           `${code("/revisi sapaan: Mbak")} — ubah email`,
+          `${code("/revisi body: …")} — susun ulang isi email`,
           `${code("/schedule 18:00")} — jadwalkan`,
           `${code("YA")} — kirim sekarang`,
         ].join("\n"),

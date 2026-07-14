@@ -1,6 +1,7 @@
 import type { RevisiField } from "../bot/session.js";
 import { prisma } from "../db/prisma.js";
 import { draftEmail } from "../llm/draftEmail.js";
+import { reviseEmailBody } from "../llm/reviseEmailBody.js";
 import type { ExtractedJob } from "../llm/extractJob.js";
 import {
   resolveEmailLanguage,
@@ -250,14 +251,47 @@ async function applyOneField(
     return;
   }
   if (field === "body") {
-    if (value.length < 20) {
-      throw new Error("Isi emailnya terlalu pendek.");
-    }
-    await prisma.application.update({
-      where: { id: pending.id },
-      data: { body: value },
-    });
+    throw new Error(
+      "Body harus direvisi lewat instruksi (LLM), bukan replace langsung.",
+    );
   }
+}
+
+async function reviseBodyFromInstruction(
+  telegramId: string,
+  applicationId: number,
+  instruction: string,
+): Promise<void> {
+  const value = instruction.trim();
+  if (value.length < 8) {
+    throw new Error(
+      "Instruksi body terlalu pendek. Contoh: hilangkan katalon, ganti dengan playwright.",
+    );
+  }
+
+  const app = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: { job: true },
+  });
+  if (!app) throw new Error("Email-nya nggak ketemu.");
+
+  const cv = await getCvContext(telegramId);
+  const emailLangPref = await getEmailLanguagePref(telegramId);
+  const language = resolveEmailLanguage(emailLangPref, app.job.language);
+
+  const body = await reviseEmailBody({
+    currentBody: app.body,
+    instruction: value,
+    language,
+    position: app.job.position,
+    company: app.job.company,
+    cv: cv.profile,
+  });
+
+  await prisma.application.update({
+    where: { id: applicationId },
+    data: { body },
+  });
 }
 
 export async function applyRevisiUpdates(input: {
@@ -302,9 +336,13 @@ export async function applyRevisiUpdates(input: {
     await regenerateDraftBody(input.telegramId, pending.id);
   }
 
-  // Subject/body applied after regen so user overrides stick
+  // Subject after regen so overrides stick; body = LLM rewrite from instruction.
   for (const [field, value] of subjectBody) {
-    await applyOneField(pending, field, value);
+    if (field === "body") {
+      await reviseBodyFromInstruction(input.telegramId, pending.id, value);
+    } else {
+      await applyOneField(pending, field, value);
+    }
     changed.push(field);
   }
 

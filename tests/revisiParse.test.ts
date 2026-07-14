@@ -18,7 +18,13 @@ describe("parseRevisiUpdates", () => {
     });
   });
 
-  it("returns empty for unknown format", () => {
-    expect(parseRevisiUpdates("ubah semuanya")).toEqual({});
+  it("parses body instruction with commas", () => {
+    expect(
+      parseRevisiUpdates(
+        "body: hilangkan bagian pengalaman di katalon, ganti dengan pengalaman di playwright di tim sebelumnya",
+      ),
+    ).toEqual({
+      body: "hilangkan bagian pengalaman di katalon, ganti dengan pengalaman di playwright di tim sebelumnya",
+    });
   });
 });

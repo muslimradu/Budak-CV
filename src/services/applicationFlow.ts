@@ -219,7 +219,7 @@ export function formatDraftPreview(app: {
     [
       `Kirim sekarang: ketik ${code("YA")} atau tekan tombol di bawah`,
       `Jadwal: ${code("/schedule 18:00")}`,
-      `Revisi: tombol di bawah atau ${code("/revisi sapaan: Mbak")}`,
+      `Revisi: tombol di bawah atau ${code("/revisi body: …")} / ${code("/revisi sapaan: Mbak")}`,
       `Batal: ${code("BATAL")}`,
     ].join("\n"),
   );

@@ -347,10 +347,16 @@ export function registerMessageHandlers(bot: Bot): void {
         "email",
         "nama",
         "sapaan",
+        "body",
       ].includes(field);
       if (needsWait) {
         await ctx.reply(
-          joinBlocks(bold("Sebentar…"), "Aku update email kamu."),
+          joinBlocks(
+            bold("Sebentar…"),
+            field === "body"
+              ? "Aku susun ulang body email sesuai instruksi kamu."
+              : "Aku update email kamu.",
+          ),
           replyHtml,
         );
       }

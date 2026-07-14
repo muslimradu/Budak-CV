@@ -80,12 +80,17 @@ async function applyFieldUpdate(
     return;
   }
 
-  const needsWait = ["company", "position", "email", "nama", "sapaan"].includes(
+  const needsWait = ["company", "position", "email", "nama", "sapaan", "body"].includes(
     field,
   );
   if (needsWait) {
     await ctx.reply(
-      joinBlocks(bold("Sebentar…"), "Aku update email kamu."),
+      joinBlocks(
+        bold("Sebentar…"),
+        field === "body"
+          ? "Aku susun ulang body email sesuai instruksi kamu."
+          : "Aku update email kamu.",
+      ),
       replyHtml,
     );
   }
@@ -263,7 +268,14 @@ export function registerCallbackHandlers(bot: Bot): void {
       await ctx.reply(
         joinBlocks(
           bold(`Ubah ${REVISI_FIELD_LABELS[revisiField]}`),
-          "Kirim nilai barunya sekarang ya.",
+          revisiField === "body"
+            ? "Tulis instruksi revisinya, misalnya:"
+            : "Kirim nilai barunya sekarang ya.",
+          revisiField === "body"
+            ? code(
+                "hilangkan pengalaman Katalon, ganti dengan Playwright di tim sebelumnya",
+              )
+            : null,
           `Batal? Ketik ${code("BATAL")}.`,
         ),
         replyHtml,
